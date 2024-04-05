@@ -1,0 +1,6 @@
+git+https://github.com/pannet1/omspy-brokers
+git+https://github.com/pannet1/omspy
+git+https://github.com/pannet1/toolkit
+pydantic<2.0
+pyotp
+pendulum

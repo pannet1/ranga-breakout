@@ -1,12 +1,11 @@
-from __init__ import logging, CNFG, S_UNIV, S_OUT
+from __init__ import logging, CNFG, S_UNIV, S_OUT, S_EXPIRY
 from symbol import Symbol
 from api_helper import login
 import pandas as pd
 import traceback
 import pendulum as pdlm
 
-EXPIRY = "25APR24"
-sfx = EXPIRY + "FUT"
+sfx = S_EXPIRY + "FUT"
 
 
 def read(O_SYM):
@@ -71,7 +70,7 @@ def main():
     except Exception as e:
         logging.error(f"{e} while getting candles")
 
-    for k, v in dct.items():
+    for _, v in dct.items():
         place_orders(api, v)
 
 

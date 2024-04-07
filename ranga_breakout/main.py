@@ -1,4 +1,4 @@
-from __init__ import logging, CNFG, S_UNIV, S_OUT, S_EXPIRY
+from __init__ import logging, CNFG, S_UNIV, S_OUT, S_EXPIRY, O_UTIL
 from symbol import Symbol
 from api_helper import login
 import pandas as pd
@@ -12,8 +12,10 @@ def read(O_SYM):
     df = pd.read_csv(S_UNIV).dropna(axis=0).drop(['enable'], axis=1)
     for index, row in df.iterrows():
         exch = "NFO"
-        tkn = O_SYM.get_tkn_fm_sym(row['symbol'] + sfx, exch)
+        symbol = row['symbol'].strip()
+        tkn = O_SYM.get_tkn_fm_sym(symbol + sfx, exch)
         df.loc[index, 'token'] = tkn
+    df = df[df['token'] != "0"]
     df.to_csv(S_OUT, index=False)
     print(df)
 
@@ -34,6 +36,7 @@ def get_candles(api, df):
                               for i in data[:1]][0]
         dct[row['symbol']].update(
             {"quantity": row['quantity'], "token": row['token']})
+        O_UTIL.slp_til_nxt_sec()
     return dct
 
 
@@ -64,11 +67,11 @@ def main():
 
     read(O_SYM)
     df = pd.read_csv(S_OUT)
+    print(df)
 
     # check if pendulum time is greater than 9:45:00
 
     pdlm.now()
-    print("no candles found")
 
     # pdlm.now() > "2024-04-05 09:45:00":
     try:

@@ -21,8 +21,11 @@ class Symbol:
             }
             url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
             resp = get(url, headers=headers)
-            with open(S_DUMP, "w") as json_file:
-                json_file.write(resp.text)
+            if resp is None or resp.text == "null":
+                print(f"no data returned {resp}")
+            else:
+                with open(S_DUMP, "w") as json_file:
+                    json_file.write(resp.text)
         return O_FUTL.read_file(S_DUMP)
 
     def get_tkn_fm_sym(self, sym, exch):

@@ -4,11 +4,12 @@ from api_helper import login
 import pandas as pd
 import traceback
 import pendulum as pdlm
+from clock import is_time_past, dt_to_str
 
 sfx = S_EXPIRY + "FUT"
 
 
-def read(O_SYM):
+def write_to_csv(O_SYM):
     df = pd.read_csv(S_UNIV).dropna(axis=0).drop(['enable'], axis=1)
     for index, row in df.iterrows():
         exch = "NFO"
@@ -27,13 +28,14 @@ def get_candles(api, df):
             "exchange": "NFO",
             "symboltoken": row['token'],
             "interval": "THIRTY_MINUTE",
-            "fromdate": "2024-04-05 09:15",
-            "todate": "2024-04-05 09:45"
+            "fromdate": dt_to_str({"hour": 9, "minute": 15, "second": 0}),
+            "todate": dt_to_str({})
         }
         data = api.obj.getCandleData(historicParam)['data']
         dct[row['symbol']] = [{"tsym": row['symbol'] + sfx, "dt": i[0],
                                "o": i[1], "h": i[2], "l": i[3], "c": i[4]}
                               for i in data[:1]][0]
+        logging.info(dct[row['symbol']])
         dct[row['symbol']].update(
             {"quantity": row['quantity'], "token": row['token']})
         O_UTIL.slp_til_nxt_sec()
@@ -65,15 +67,19 @@ def main():
     api = login(CNFG)
     O_SYM = Symbol()
 
-    read(O_SYM)
+    write_to_csv(O_SYM)
     df = pd.read_csv(S_OUT)
     print(df)
 
     # check if pendulum time is greater than 9:45:00
 
-    pdlm.now()
+    while not is_time_past(9, 45, 0):
+        O_UTIL.slp_til_nxt_sec()
+        print("clock is:", pdlm.now().format("HH:mm:ss"), "zzz till 9:45")
+        O_UTIL.slp_til_nxt_sec()
+    else:
+        print("HAPPY TRADING")
 
-    # pdlm.now() > "2024-04-05 09:45:00":
     try:
         dct = get_candles(api, df)
     except Exception as e:

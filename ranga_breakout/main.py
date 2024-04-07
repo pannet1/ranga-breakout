@@ -64,6 +64,12 @@ def main():
 
     read(O_SYM)
     df = pd.read_csv(S_OUT)
+
+    # check if pendulum time is greater than 9:45:00
+
+    pdlm.now()
+    print("no candles found")
+
     # pdlm.now() > "2024-04-05 09:45:00":
     try:
         dct = get_candles(api, df)

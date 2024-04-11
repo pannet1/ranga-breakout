@@ -66,7 +66,7 @@ def place_orders(api, ohlc):
         symbol=ohlc["tsym"],
         side="BUY",
         exchange="NFO",
-        order_type="STOPLOSS_LIMIT",
+        order_type="STOPLOSS_MARKET",
         product="INTRADAY",  # CARRYFORWARD,INTRADAY
         price=float(ohlc["h"]) + 0.05,
         trigger_price=ohlc["h"],

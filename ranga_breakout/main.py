@@ -1,4 +1,4 @@
-from __init__ import logging, CNFG, S_UNIV, S_OUT, S_EXPIRY, O_UTIL
+from __init__ import logging, CNFG, S_UNIV, S_OUT, O_UTIL
 from symbol import Symbol
 from api_helper import login
 import pandas as pd
@@ -6,7 +6,6 @@ import pendulum as pdlm
 from clock import is_time_past, dt_to_str
 import traceback
 
-sfx = S_EXPIRY + "FUT"
 T_START = "9:45"
 T_STOP = "3:28"
 
@@ -17,7 +16,7 @@ def write_to_csv(O_SYM):
         for index, row in df.iterrows():
             exch = "NFO"
             symbol = row["symbol"].strip()
-            tkn = O_SYM.get_tkn_fm_sym(symbol + sfx, exch)
+            tkn = O_SYM.get_tkn_fm_sym(symbol + "FUT", exch)
             df.loc[index, "token"] = tkn
         df = df[df["token"] != "0"]
         df.to_csv(S_OUT, index=False)
@@ -64,21 +63,21 @@ def get_candles(api, df):
 def place_orders(api, ohlc):
     args = dict(
         symbol=ohlc["tsym"],
-        side="BUY",
         exchange="NFO",
         order_type="STOPLOSS_MARKET",
         product="INTRADAY",  # CARRYFORWARD,INTRADAY
-        price=float(ohlc["h"]) + 0.05,
-        trigger_price=ohlc["h"],
         quantity=ohlc["quantity"],
         symboltoken=ohlc["token"],
         variety="STOPLOSS",
         duration="DAY",
     )
+    args["side"] = "BUY"
+    args["price"] = float(ohlc["h"]) + 0.10
+    args["trigger_price"] = float(ohlc["h"]) + 0.05
     api.order_place(**args)
     args["side"] = "SELL"
-    args["price"] = float(ohlc["l"]) - 0.05
-    args["trigger_price"] = ohlc["l"]
+    args["price"] = float(ohlc["l"]) - 0.10
+    args["trigger_price"] = float(ohlc["l"]) - 0.05
     api.order_place(**args)
 
 

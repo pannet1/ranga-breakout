@@ -8,6 +8,7 @@ import traceback
 
 T_START = "9:45"
 T_STOP = "3:28"
+sfx = "FUT"
 
 
 def write_to_csv(O_SYM):
@@ -16,7 +17,7 @@ def write_to_csv(O_SYM):
         for index, row in df.iterrows():
             exch = "NFO"
             symbol = row["symbol"].strip()
-            tkn = O_SYM.get_tkn_fm_sym(symbol + "FUT", exch)
+            tkn = O_SYM.get_tkn_fm_sym(symbol + sfx, exch)
             df.loc[index, "token"] = tkn
         df = df[df["token"] != "0"]
         df.to_csv(S_OUT, index=False)

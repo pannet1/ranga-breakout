@@ -1,4 +1,4 @@
-from __init__ import CNFG, S_DATA, O_UTIL
+from __init__ import CNFG, S_DATA, O_UTIL, logging
 import pandas as pd
 from api_helper import login
 
@@ -39,22 +39,23 @@ def run():
         ord = api.orders["data"]
         for i in cancel_orders(ord):
             O_UTIL.slp_til_nxt_sec()
-            print(i)
+            logging.info(f"close all: cancelling order {i['tradingsymbol']}")
             api.order_cancel(**i)
 
         pos = api.positions["data"]
         for order_params in close_positions(pos):
-            print(order_params)
+            logging.info(
+                "close all: closing position for {order_params['tradingsymbol']}"
+            )
             O_UTIL.slp_til_nxt_sec()
             resp = api.order_place(**order_params)
-            print(resp)
-        pd.DataFrame(api.orders["data"]).to_csv(
-            S_DATA + "orders.csv", index=False)
+            logging.info(resp)
+        pd.DataFrame(api.orders["data"]).to_csv(S_DATA + "orders.csv", index=False)
         pd.DataFrame(api.positions["data"]).to_csv(
             S_DATA + "positions.csv", index=False
         )
     except Exception as e:
-        print(e)
+        logging.error(e)
 
 
 if __name__ == "__main__":

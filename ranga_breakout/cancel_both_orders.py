@@ -1,4 +1,4 @@
-from __init__ import CNFG
+from __init__ import CNFG, logging
 from api_helper import login
 
 
@@ -8,7 +8,8 @@ def get_order_ids(buy_orders, sell_orders):
         for i in buy_orders:
             for j in sell_orders:
                 if i["tradingsymbol"] == j["tradingsymbol"]:
-                    print(f' getting orders to cancel for {i["tradingsymbol"]}')
+                    logging.info(
+                        f' getting orders to cancel for {i["tradingsymbol"]}')
                     yield [i["orderid"], j["orderid"]]
 
 
@@ -30,7 +31,6 @@ def run():
             if int(i["quantity"]) < 0
             and (i["status"] == "open" or i["status"] == "trigger pending")
         ]
-
         for i in get_order_ids(buy_orders, sell_orders):
             print(api.order_cancel(i[0], "NORMAL"))
             print(api.order_cancel(i[1], "NORMAL"))

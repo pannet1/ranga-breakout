@@ -15,8 +15,15 @@ def login(CNFG):
 if __name__ == "__main__":
     from __init__ import CNFG, S_DATA
     import pandas as pd
+
     api = login(CNFG)
 
-    ord = api.orders
-    print(ord)
-    pd.DataFrame(ord).to_csv(S_DATA + "orders.csv")
+    ord = api.orders["data"]
+    df = pd.DataFrame(ord)
+    print(df)
+    df.to_csv(S_DATA + "orders.csv")
+
+    pos = api.positions["data"]
+    df = pd.DataFrame(pos)
+    print(df)
+    df.to_csv(S_DATA + "positions.csv")

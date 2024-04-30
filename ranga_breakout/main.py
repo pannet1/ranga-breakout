@@ -1,9 +1,9 @@
-from __init__ import logging, CNFG, S_UNIV, S_OUT, O_UTIL
+from __init__ import logging, CNFG, S_UNIV, S_OUT
 from symbol import Symbol
 from api_helper import login
 import pandas as pd
 import pendulum as pdlm
-from clock import is_time_past, dt_to_str
+from toolkit.kokoo import is_time_past, dt_to_str, blink
 import traceback
 
 T_START = "9:45"
@@ -16,7 +16,7 @@ def write_to_csv(O_SYM):
         df = pd.read_csv(S_UNIV).dropna(axis=0).drop(["enable"], axis=1)
         for index, row in df.iterrows():
             exch = "NFO"
-            symbol = row["symbol"].strip()
+            symbol = row["symbol"].upper().replace(" ", "")
             tkn = O_SYM.get_tkn_fm_sym(symbol + sfx, exch)
             df.loc[index, "token"] = tkn
         df = df[df["token"] != "0"]
@@ -35,7 +35,7 @@ def get_candles(api, df):
                 "symboltoken": row["token"],
                 "interval": "THIRTY_MINUTE",
                 "fromdate": dt_to_str("9:15"),
-                "todate": dt_to_str(),
+                "todate": dt_to_str(""),
             }
             data = api.obj.getCandleData(historicParam)["data"]
             dct[row["symbol"]] = [
@@ -53,7 +53,7 @@ def get_candles(api, df):
             dct[row["symbol"]].update(
                 {"quantity": row["quantity"], "token": row["token"]}
             )
-            O_UTIL.slp_til_nxt_sec()
+            blink()
     except Exception as e:
         logging.error(f"while getting candles {e}")
         traceback.print_exc()
@@ -75,11 +75,13 @@ def place_orders(api, ohlc):
     args["side"] = "BUY"
     args["price"] = float(ohlc["h"]) + 0.10
     args["trigger_price"] = float(ohlc["h"]) + 0.05
-    api.order_place(**args)
+    resp = api.order_place(**args)
+    logging.info(resp)
     args["side"] = "SELL"
     args["price"] = float(ohlc["l"]) - 0.10
     args["trigger_price"] = float(ohlc["l"]) - 0.05
-    api.order_place(**args)
+    resp = api.order_place(**args)
+    logging.info(resp)
 
 
 def main():
@@ -91,9 +93,9 @@ def main():
     print(df)
 
     while not is_time_past(T_START):
-        O_UTIL.slp_til_nxt_sec()
+        blink()
         print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", T_START)
-        O_UTIL.slp_til_nxt_sec()
+        blink()
     else:
         print("HAPPY TRADING")
 
@@ -104,6 +106,7 @@ def main():
 
     for _, v in dct.items():
         place_orders(api, v)
+        blink()
 
 
 main()

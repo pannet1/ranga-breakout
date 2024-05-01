@@ -1,9 +1,9 @@
-from .clock import is_time_past, dt_to_str
+from toolkit.kokoo import is_time_past, dt_to_str
 import pendulum as pdlm
 
 
 def test_is_time_past():
-    """ Checks if the current Pendulum time is past the given hour, minute, second"""
+    """Checks if the current Pendulum time is past the given hour, minute, second"""
     assert is_time_past("9")
     assert is_time_past("9:15")
     assert is_time_past("9:15:00")
@@ -24,3 +24,7 @@ def test_dt_to_str():
     assert dt_to_str("19") == now
     assert dt_to_str("19:15") == now
     assert dt_to_str("19:15:00") == now
+
+
+test_is_time_past()
+test_dt_to_str()

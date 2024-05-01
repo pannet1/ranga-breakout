@@ -1,10 +1,11 @@
 from __init__ import logging, CNFG, S_UNIV, S_OUT
 from symbol import Symbol
-from api_helper import login
+from login import get_token
 import pandas as pd
 import pendulum as pdlm
 from toolkit.kokoo import is_time_past, dt_to_str, blink
 import traceback
+from api_helper import retry
 
 T_START = "9:45"
 T_STOP = "3:28"
@@ -16,9 +17,10 @@ def write_to_csv(O_SYM):
         df = pd.read_csv(S_UNIV).dropna(axis=0).drop(["enable"], axis=1)
         for index, row in df.iterrows():
             exch = "NFO"
-            symbol = row["symbol"].upper().replace(" ", "")
+            symbol = row["symbol"].replace(" ", "").upper()
             tkn = O_SYM.get_tkn_fm_sym(symbol + sfx, exch)
             df.loc[index, "token"] = tkn
+            df.loc[index, "symbol"] = symbol
         df = df[df["token"] != "0"]
         df.to_csv(S_OUT, index=False)
     except Exception as e:
@@ -27,17 +29,24 @@ def write_to_csv(O_SYM):
 
 
 def get_candles(api, df):
-    try:
-        dct = {}
-        for _, row in df.iterrows():
-            historicParam = {
-                "exchange": "NFO",
-                "symboltoken": row["token"],
-                "interval": "THIRTY_MINUTE",
-                "fromdate": dt_to_str("9:15"),
-                "todate": dt_to_str(""),
-            }
-            data = api.obj.getCandleData(historicParam)["data"]
+    @retry(max_attempts=3)
+    def history(historicParam):
+        resp = api.obj.getCandleData(historicParam)
+        if resp and any(resp):
+            return resp
+
+    dct = {}
+    for _, row in df.iterrows():
+        historicParam = {
+            "exchange": "NFO",
+            "symboltoken": row["token"],
+            "interval": "THIRTY_MINUTE",
+            "fromdate": "2024-04-29 09:15",
+            "todate": dt_to_str(""),
+        }
+        resp = history(historicParam)
+        if resp and any(resp):
+            data = resp
             dct[row["symbol"]] = [
                 {
                     "tsym": row["symbol"] + sfx,
@@ -53,12 +62,8 @@ def get_candles(api, df):
             dct[row["symbol"]].update(
                 {"quantity": row["quantity"], "token": row["token"]}
             )
-            blink()
-    except Exception as e:
-        logging.error(f"while getting candles {e}")
-        traceback.print_exc()
-    finally:
-        return dct
+        blink()
+    return dct
 
 
 def place_orders(api, ohlc):
@@ -85,7 +90,7 @@ def place_orders(api, ohlc):
 
 
 def main():
-    api = login(CNFG)
+    api = get_token(CNFG)
     O_SYM = Symbol()
 
     write_to_csv(O_SYM)

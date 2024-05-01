@@ -1,4 +1,7 @@
 **/data/universe.csv
+**/data/symbols.json
+**/data/log.txt
+**/data/out.csv
 
 ~*
 *.yml

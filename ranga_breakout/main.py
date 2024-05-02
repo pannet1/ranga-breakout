@@ -41,7 +41,7 @@ def get_candles(api, df):
             "exchange": "NFO",
             "symboltoken": row["token"],
             "interval": "THIRTY_MINUTE",
-            "fromdate": "09:15",
+            "fromdate": dt_to_str("09:15"),
             "todate": dt_to_str(""),
         }
         resp = history(historicParam)

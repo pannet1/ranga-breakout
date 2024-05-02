@@ -13,9 +13,9 @@ def retry(max_attempts):
                     resp = func(*args, **kwargs)
                     if isinstance(resp, dict):
                         if "data" not in resp:
-                            raise Exception(f"no data in response {func.__name__}")
+                            raise Exception(f"no data in {resp}")
                         elif resp["data"] is None:
-                            raise Exception(f"no value in data for {func.__name__}")
+                            raise Exception("no value in resp data")
                     else:
                         raise Exception(f"unexpected {resp=} for {func.__name__}")
                     return resp["data"]
@@ -45,6 +45,7 @@ def run():
             print(f"{t=}")
 
     for j in range(2):
+        print(j)
         iterhere()
 
 

@@ -16,7 +16,7 @@ if __name__ == "__main__":
     from __init__ import CNFG, S_DATA
     import pandas as pd
 
-    api = login(CNFG)
+    api = get_token(CNFG)
 
     ord = api.orders["data"]
     df = pd.DataFrame(ord)
@@ -26,8 +26,13 @@ if __name__ == "__main__":
     pos = api.positions["data"]
     df = pd.DataFrame(pos)
     print(df)
-    df.to_csv(S_DATA + "positions.csv")
+    # find sum of of pnl column in df
 
+    df.to_csv(S_DATA + "positions.csv")
+    lst = df["pnl"].astype(float).tolist()
+    pnl = sum(lst)
+    print(f"{pnl=}")
+    """
     historicParam = {
         "exchange": "NSE",
         "symboltoken": 1502,
@@ -37,3 +42,4 @@ if __name__ == "__main__":
     }
     resp = api.obj.getCandleData(historicParam)
     print(resp)
+    """

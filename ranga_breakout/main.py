@@ -1,37 +1,18 @@
-from __init__ import logging, CNFG, S_UNIV, S_OUT
-from symbol import Symbol
-from login import get_token
-import pandas as pd
+from __init__ import logging, SFX, O_SETG
+from universe import stocks_in_play
+from api import Helper
 import pendulum as pdlm
-from toolkit.kokoo import is_time_past, dt_to_str, blink
-import traceback
-from api_helper import retry
+from toolkit.kokoo import is_time_past, dt_to_str, blink, kill_tmux
+from decorator import retry
+from strategy import Strategy
 
-T_START = "9:45"
-T_STOP = "3:28"
-sfx = "FUT"
+dct_stops = {}
 
 
-def write_to_csv(O_SYM):
-    try:
-        df = pd.read_csv(S_UNIV).dropna(axis=0).drop(["enable"], axis=1)
-        for index, row in df.iterrows():
-            exch = "NFO"
-            symbol = row["symbol"].replace(" ", "").upper()
-            tkn = O_SYM.get_tkn_fm_sym(symbol + sfx, exch)
-            df.loc[index, "token"] = tkn
-            df.loc[index, "symbol"] = symbol
-        df = df[df["token"] != "0"]
-        df.to_csv(S_OUT, index=False)
-    except Exception as e:
-        logging.error(e)
-        traceback.print_exc()
-
-
-def get_candles(api, df):
+def get_candles(df):
     @retry(max_attempts=3)
     def history(historicParam):
-        resp = api.obj.getCandleData(historicParam)
+        resp = Helper.api.obj.getCandleData(historicParam)
         if resp and any(resp):
             return resp
 
@@ -49,7 +30,7 @@ def get_candles(api, df):
             data = resp
             dct[row["symbol"]] = [
                 {
-                    "tsym": row["symbol"] + sfx,
+                    "tsym": row["symbol"] + SFX,
                     "dt": i[0],
                     "o": i[1],
                     "h": i[2],
@@ -66,7 +47,7 @@ def get_candles(api, df):
     return dct
 
 
-def place_orders(api, ohlc):
+def place_orders(ohlc):
     args = dict(
         symbol=ohlc["tsym"],
         exchange="NFO",
@@ -77,41 +58,61 @@ def place_orders(api, ohlc):
         variety="STOPLOSS",
         duration="DAY",
     )
-    args["side"] = "BUY"
-    args["price"] = float(ohlc["h"]) + 0.10
-    args["trigger_price"] = float(ohlc["h"]) + 0.05
-    resp = api.order_place(**args)
-    logging.info(resp)
-    args["side"] = "SELL"
-    args["price"] = float(ohlc["l"]) - 0.10
-    args["trigger_price"] = float(ohlc["l"]) - 0.05
-    resp = api.order_place(**args)
-    logging.info(resp)
+    bargs = args.copy()
+    sargs = args.copy()
+
+    bargs["side"] = "BUY"
+    bargs["price"] = float(ohlc["h"]) + 0.10
+    bargs["trigger_price"] = float(ohlc["h"]) + 0.05
+
+    sargs["side"] = "SELL"
+    sargs["price"] = float(ohlc["l"]) - 0.10
+    sargs["trigger_price"] = float(ohlc["l"]) - 0.05
+
+    if O_SETG["mode"] >= 0:
+        logging.debug(bargs)
+        resp = Helper.api.order_place(**bargs)
+        logging.info(f"{bargs['symbol']} {bargs['side']} got {resp=}")
+    elif O_SETG["mode"] <= 0:
+        logging.debug(sargs)
+        resp = Helper.api.order_place(**sargs)
+        logging.info(f"{sargs['symbol']} {sargs['side']} got {resp=}")
+
+    if O_SETG["mode"] == -1:
+        dct_stops.append(bargs)
+    elif O_SETG["mode"] == 1:
+        dct_stops.append(sargs)
 
 
 def main():
-    api = get_token(CNFG)
-    O_SYM = Symbol()
+    df = stocks_in_play()
 
-    write_to_csv(O_SYM)
-    df = pd.read_csv(S_OUT)
-    print(df)
-
-    while not is_time_past(T_START):
+    while not is_time_past(O_SETG["start"]):
         blink()
         print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", T_START)
         blink()
     else:
         print("HAPPY TRADING")
 
+    Helper.set_token()
     try:
-        dct = get_candles(api, df)
+        dct = get_candles(df)
     except Exception as e:
         logging.error(f"{e} while getting candles")
 
     for _, v in dct.items():
-        place_orders(api, v)
+        place_orders(v)
         blink()
+
+    Sgy = Strategy(Helper.api)
+    try:
+        while not is_time_past(O_SETG["stop"]) and Sgy.is_set:
+            Sgy.run()
+            blink()
+        else:
+            kill_tmux()
+    except Exception as e:
+        logging.error(f"{e} while running strategy")
 
 
 main()

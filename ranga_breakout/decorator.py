@@ -1,5 +1,4 @@
 import time
-import logging
 import traceback
 from functools import wraps
 
@@ -50,4 +49,5 @@ def run():
 
 
 if __name__ == "__main__":
+    print("testing iteration ... run login script to check pnl")
     run()

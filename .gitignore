@@ -1,11 +1,7 @@
-**/data/universe.csv
-**/data/symbols.json
-**/data/log.txt
-**/data/out.csv
+**/data/**
+**/logs/**
 
 ~*
-*.yml
-*.yaml
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

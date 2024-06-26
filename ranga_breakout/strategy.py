@@ -66,38 +66,38 @@ class Strategy:
     """
 
     def run(self):
-        while True:
-            if any(self.lst):
-                dct = self.api.orders
-                lst_orders = dct["data"]
-                # work with the copy of stop orders
-                for i in self.lst[:]:
-                    print(f'{i["side"]} stop order from file for {i["symbol"]}')
-                    args = {"tradingsymbol": i["symbol"]}
-                    # shift the side to check for matching entries
-                    args["transactiontype"] = "SELL" if i["side"] == "BUY" else "BUY"
-                    # filter the order book containing only this symbol
-                    lst_of_entries = [
-                        j
-                        for j in lst_orders
-                        if j["tradingsymbol"] == args["tradingsymbol"]
-                        and j["transactiontype"] == args["transactiontype"]
-                    ]
-                    # do we have any item in the list
-                    if len(lst_of_entries) > 0:
-                        dct_found = is_values_in_list(lst_of_entries, args)
-                        if dct_found.get("status", "NOT_COMPLETE") == "complete":
-                            print(f"{dct_found=}")
-                            resp = api.order_place(**i)
-                            print(f"placing stop order: {resp=}")
-                            self.lst.remove(i)
-                    # if not remove it from list
-                    else:
-                        print(f'{i["side"]} stop order for {i["symbol"]} has no match')
+        if any(self.lst):
+            dct = self.api.orders
+            lst_orders = dct["data"]
+            # work with the copy of stop orders
+            for i in self.lst[:]:
+                print(f'{i["side"]} stop order from file for {i["symbol"]}')
+                args = {"tradingsymbol": i["symbol"]}
+                # shift the side to check for matching entries
+                args["transactiontype"] = "SELL" if i["side"] == "BUY" else "BUY"
+                # filter the order book containing only this symbol
+                lst_of_entries = [
+                    j
+                    for j in lst_orders
+                    if j["tradingsymbol"] == args["tradingsymbol"]
+                    and j["transactiontype"] == args["transactiontype"]
+                ]
+                # do we have any item in the list
+                if len(lst_of_entries) > 0:
+                    dct_found = is_values_in_list(lst_of_entries, args)
+                    if dct_found.get("status", "NOT_COMPLETE") == "complete":
+                        print(f"{dct_found=}")
+                        resp = api.order_place(**i)
+                        print(f"placing stop order: {resp=}")
                         self.lst.remove(i)
-                timer(1)
-                print(f"{len(self.lst)} stop orders found")
-                pprint(self.lst)
+                # if not remove it from list
+                else:
+                    print(f'{i["side"]} stop order for {i["symbol"]} has no match')
+                    self.lst.remove(i)
+            timer(1)
+            print(f"{len(self.lst)} stop orders found")
+            pprint(self.lst)
+        return
 
 
 if __name__ == "__main__":

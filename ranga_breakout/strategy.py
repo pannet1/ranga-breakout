@@ -87,7 +87,7 @@ class Strategy:
                     dct_found = is_values_in_list(lst_of_entries, args)
                     if dct_found.get("status", "NOT_COMPLETE") == "complete":
                         print(f"{dct_found=}")
-                        resp = api.order_place(**i)
+                        resp = self.api.order_place(**i)
                         print(f"placing stop order: {resp=}")
                         self.lst.remove(i)
                 # if not remove it from list

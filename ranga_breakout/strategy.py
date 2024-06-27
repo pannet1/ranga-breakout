@@ -1,18 +1,22 @@
-from __init__ import O_FUTL, S_STOPS
+from __init__ import logging, O_FUTL, S_STOPS
 from toolkit.kokoo import timer
 from pprint import pprint
 
 
 def is_values_in_list(lst_orders, args):
     dct = {}
-    for i in lst_orders:
-        if (
-            i["tradingsymbol"] == args["tradingsymbol"]
-            and i["transactiontype"] == args["transactiontype"]
-            and i["status"] == "complete"
-        ):
-            return i
-    return dct
+    try:
+        for i in lst_orders:
+            if (
+                i["tradingsymbol"] == args["tradingsymbol"]
+                and i["transactiontype"] == args["transactiontype"]
+                and i["status"] == "complete"
+            ):
+                return i
+    except Exception as e:
+        logging.error(f"{e} while checking for values in list")
+    finally:
+        return dct
 
 
 class Strategy:
@@ -66,38 +70,63 @@ class Strategy:
     """
 
     def run(self):
-        if any(self.lst):
+        try:
+            if not any(self.lst):
+                logging.info("no stop orders")
+                return
+
             dct = self.api.orders
+
+            if not isinstance(dct, dict):
+                logging.error("'dct' is not a dictionary in run()")
+                return
+
+            if "data" not in dct:
+                logging.error("'data' key not found in 'dct'.")
+                return
+
             lst_orders = dct["data"]
-            # work with the copy of stop orders
+
+            # Work with the copy of stop orders
             for i in self.lst[:]:
-                print(f'{i["side"]} stop order from file for {i["symbol"]}')
-                args = {"tradingsymbol": i["symbol"]}
-                # shift the side to check for matching entries
-                args["transactiontype"] = "SELL" if i["side"] == "BUY" else "BUY"
-                # filter the order book containing only this symbol
-                lst_of_entries = [
-                    j
-                    for j in lst_orders
-                    if j["tradingsymbol"] == args["tradingsymbol"]
-                    and j["transactiontype"] == args["transactiontype"]
-                ]
-                # do we have any item in the list
-                if len(lst_of_entries) > 0:
-                    dct_found = is_values_in_list(lst_of_entries, args)
-                    if dct_found.get("status", "NOT_COMPLETE") == "complete":
-                        print(f"{dct_found=}")
-                        resp = self.api.order_place(**i)
-                        print(f"placing stop order: {resp=}")
+                try:
+                    print(f'{i["side"]} stop order from file for {i["symbol"]}')
+                    args = {"tradingsymbol": i["symbol"]}
+                    args["transactiontype"] = "SELL" if i["side"] == "BUY" else "BUY"
+
+                    # Filter the order book containing only this symbol
+                    lst_of_entries = [
+                        j
+                        for j in lst_orders
+                        if j["tradingsymbol"] == args["tradingsymbol"]
+                        and j["transactiontype"] == args["transactiontype"]
+                    ]
+
+                    # Do we have any item in the list
+                    if lst_of_entries:
+                        dct_found = is_values_in_list(lst_of_entries, args)
+                        if dct_found.get("status", "NOT_COMPLETE") == "complete":
+                            resp = self.api.order_place(**i)
+                            logging.info(f"{resp} stop order for i['tradingsymbol']")
+                            self.lst.remove(i)
+                    else:
+                        print(f'{i["side"]} stop order for {i["symbol"]} has no match')
                         self.lst.remove(i)
-                # if not remove it from list
-                else:
-                    print(f'{i["side"]} stop order for {i["symbol"]} has no match')
-                    self.lst.remove(i)
-            timer(1)
-            print(f"{len(self.lst)} stop orders found")
-            pprint(self.lst)
-        return
+
+                except KeyError as ke:
+                    logging.error(f"KeyError: {ke} - Order: {i}")
+                except Exception as e:
+                    logging.error(f"Unexpected error processing order {i}: {e}")
+
+            self.wait_and_log_remaining_orders()
+
+        except Exception as e:
+            logging.error(e)
+
+    def wait_and_log_remaining_orders(self):
+        timer(2)
+        print(f"{len(self.lst)} stop orders found")
+        pprint(self.lst)
 
 
 if __name__ == "__main__":

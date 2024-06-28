@@ -1,6 +1,5 @@
 from __init__ import logging, O_FUTL, S_STOPS
 from toolkit.kokoo import timer
-from pprint import pprint
 
 
 def is_values_in_list(lst_orders, args):
@@ -10,9 +9,10 @@ def is_values_in_list(lst_orders, args):
             if (
                 i["tradingsymbol"] == args["tradingsymbol"]
                 and i["transactiontype"] == args["transactiontype"]
-                and i["status"] == "complete"
             ):
-                return i
+                if i["status"] == "complete":
+                    dct = i
+                logging.info(i["status"].upper())
     except Exception as e:
         logging.error(f"{e} while checking for values in list")
     finally:
@@ -105,9 +105,11 @@ class Strategy:
                     # Do we have any item in the list
                     if lst_of_entries:
                         dct_found = is_values_in_list(lst_of_entries, args)
-                        if dct_found.get("status", "NOT_COMPLETE") == "complete":
+                        status = dct_found.get("status", "NOT_COMPLETE")
+                        if status == "complete":
                             resp = self.api.order_place(**i)
                             logging.info(f"{resp} stop order for i['tradingsymbol']")
+                            timer(1)
                             self.lst.remove(i)
                     else:
                         print(f'{i["side"]} stop order for {i["symbol"]} has no match')
@@ -126,7 +128,6 @@ class Strategy:
     def wait_and_log_remaining_orders(self):
         timer(2)
         print(f"{len(self.lst)} stop orders found")
-        pprint(self.lst)
 
 
 if __name__ == "__main__":

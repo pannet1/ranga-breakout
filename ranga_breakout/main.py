@@ -2,120 +2,141 @@ from __init__ import logging, SFX, O_SETG, O_FUTL, S_STOPS
 from universe import stocks_in_play
 from api import Helper
 import pendulum as pdlm
-from toolkit.kokoo import is_time_past, dt_to_str, blink, timer, kill_tmux
+from toolkit.kokoo import is_time_past, dt_to_str, timer, kill_tmux
 from decorator import retry
 from strategy import Strategy
-
-lst_stops = []
-
-
-def get_candles(df):
-    @retry(max_attempts=3)
-    def history(historicParam):
-        timer(1)
-        resp = Helper.api.obj.getCandleData(historicParam)
-        if resp and any(resp):
-            return resp
-
-    dct = {}
-    for _, row in df.iterrows():
-        historicParam = {
-            "exchange": "NFO",
-            "symboltoken": row["token"],
-            "interval": "THIRTY_MINUTE",
-            "fromdate": dt_to_str("09:15"),
-            "todate": dt_to_str(""),
-        }
-        resp = history(historicParam)
-        if resp and any(resp):
-            data = resp
-            dct[row["symbol"]] = [
-                {
-                    "tsym": row["symbol"] + SFX,
-                    "dt": i[0],
-                    "o": i[1],
-                    "h": i[2],
-                    "l": i[3],
-                    "c": i[4],
-                }
-                for i in data[:1]
-            ][0]
-            print("getting candles for:", dct[row["symbol"]])
-            dct[row["symbol"]].update(
-                {"quantity": row["quantity"], "token": row["token"]}
-            )
-    return dct
+from traceback import print_exc
+from typing import Any  # Importing only the required types
 
 
-def place_orders(ohlc):
-    args = dict(
+def get_historical_data(historic_param: dict[str, Any]) -> Any:
+    try:
+        data = []
+
+        @retry(max_attempts=3)
+        def fetch_data(param: dict[str, Any]) -> Any:
+            timer(1)
+            return Helper.api.obj.getCandleData(param)
+
+        data = fetch_data(historic_param)
+    except Exception as e:
+        logging.error(f"{e} while getting historical data")
+        print_exc()
+    finally:
+        return data
+
+
+def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
+    return {
+        "tsym": row["symbol"] + SFX,
+        "dt": data[0][0],
+        "o": data[0][1],
+        "h": data[0][2],
+        "l": data[0][3],
+        "c": data[0][4],
+        "quantity": row["quantity"],
+        "token": row["token"],
+    }
+
+
+def get_candles(df: Any) -> dict[str, dict[str, Any]]:
+    try:
+        Helper.set_token()
+        candles = {}
+
+        for _, row in df.iterrows():
+            historic_param = {
+                "exchange": "NFO",
+                "symboltoken": row["token"],
+                "interval": "THIRTY_MINUTE",
+                "fromdate": dt_to_str("09:15"),
+                "todate": dt_to_str(""),
+            }
+            resp = get_historical_data(historic_param)
+            if any(resp) and any(resp[0]):
+                candles[row["symbol"]] = format_candle_data(row, resp)
+                logging.info("getting candles for:", candles[row["symbol"]])
+    except Exception as e:
+        logging.error(f"{e} while getting candles")
+        print_exc()
+    finally:
+        return candles
+
+
+def create_order_args(ohlc, side, price, trigger_price):
+    return dict(
         symbol=ohlc["tsym"],
         exchange="NFO",
         order_type="STOPLOSS_MARKET",
-        product="INTRADAY",  # CARRYFORWARD,INTRADAY
+        product="INTRADAY",  # Options: CARRYFORWARD, INTRADAY
         quantity=ohlc["quantity"],
         symboltoken=ohlc["token"],
         variety="STOPLOSS",
         duration="DAY",
+        side=side,
+        price=price,
+        trigger_price=trigger_price,
     )
-    bargs = args.copy()
-    sargs = args.copy()
 
-    bargs["side"] = "BUY"
-    bargs["price"] = float(ohlc["h"]) + 0.10
-    bargs["trigger_price"] = float(ohlc["h"]) + 0.05
 
-    sargs["side"] = "SELL"
-    sargs["price"] = float(ohlc["l"]) - 0.10
-    sargs["trigger_price"] = float(ohlc["l"]) - 0.05
+def place_orders(dct: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    lst_stops = []
+    for _, ohlc in dct.items():
+        buy_args = create_order_args(
+            ohlc, "BUY", float(ohlc["h"]) + 0.10, float(ohlc["h"]) + 0.05
+        )
+        sell_args = create_order_args(
+            ohlc, "SELL", float(ohlc["l"]) - 0.10, float(ohlc["l"]) - 0.05
+        )
+        if O_SETG["mode"] >= 0:
+            logging.debug(buy_args)
+            resp = Helper.api.order_place(**buy_args)
+            logging.info(f"{buy_args['symbol']} {buy_args['side']} got {resp=}")
+        elif O_SETG["mode"] <= 0:
+            logging.debug(sell_args)
+            resp = Helper.api.order_place(**sell_args)
+            logging.info(f"{sell_args['symbol']} {sell_args['side']} got {resp=}")
 
-    if O_SETG["mode"] >= 0:
-        logging.debug(bargs)
-        resp = Helper.api.order_place(**bargs)
-        logging.info(f"{bargs['symbol']} {bargs['side']} got {resp=}")
-    elif O_SETG["mode"] <= 0:
-        logging.debug(sargs)
-        resp = Helper.api.order_place(**sargs)
-        logging.info(f"{sargs['symbol']} {sargs['side']} got {resp=}")
-
-    if O_SETG["mode"] == -1:
-        lst_stops.append(bargs)
-    elif O_SETG["mode"] == 1:
-        lst_stops.append(sargs)
+        if O_SETG["mode"] == -1:
+            lst_stops.append(buy_args)
+        elif O_SETG["mode"] == 1:
+            lst_stops.append(sell_args)
+    return lst_stops
 
 
 def main():
     df = stocks_in_play()
 
     while not is_time_past(O_SETG["start"]):
-        blink()
         print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
-        blink()
+        timer(1)
     else:
         print("HAPPY TRADING")
 
-    Helper.set_token()
     try:
         dct = get_candles(df)
     except Exception as e:
         logging.error(f"{e} while getting candles")
 
-    for _, v in dct.items():
-        place_orders(v)
-        blink()
-
-    if any(lst_stops):
-        O_FUTL.write_file(S_STOPS, lst_stops)
-
-    Sgy = Strategy(Helper.api)
     try:
+        lst_stops = place_orders(dct)
+    except Exception as e:
+        logging.error(f"{e} while placing orders")
+
+    try:
+        if any(lst_stops):
+            O_FUTL.write_file(S_STOPS, lst_stops)
+    except Exception as e:
+        logging.error(f"{e} while writing file")
+
+    try:
+        Sgy = Strategy(Helper.api)
         while not is_time_past(O_SETG["stop"]) and Sgy.is_set:
             Sgy.run()
-            blink()
-        else:
-            kill_tmux()
+        kill_tmux()
     except Exception as e:
         logging.error(f"{e} while running strategy")
 
 
-main()
+if __name__ == "__main__":
+    main()

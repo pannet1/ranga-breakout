@@ -89,7 +89,7 @@ def main():
 
     while not is_time_past(O_SETG["start"]):
         blink()
-        print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", T_START)
+        print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
         blink()
     else:
         print("HAPPY TRADING")

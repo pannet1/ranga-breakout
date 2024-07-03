@@ -92,7 +92,7 @@ def place_orders(dct: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
             logging.debug(buy_args)
             resp = Helper.api.order_place(**buy_args)
             logging.info(f"{buy_args['symbol']} {buy_args['side']} got {resp=}")
-        elif O_SETG["mode"] <= 0:
+        if O_SETG["mode"] <= 0:
             logging.debug(sell_args)
             resp = Helper.api.order_place(**sell_args)
             logging.info(f"{sell_args['symbol']} {sell_args['side']} got {resp=}")

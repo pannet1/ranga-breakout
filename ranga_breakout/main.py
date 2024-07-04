@@ -88,6 +88,11 @@ def place_orders(dct: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
         sell_args = create_order_args(
             ohlc, "SELL", float(ohlc["l"]) - 0.10, float(ohlc["l"]) - 0.05
         )
+        resp = Helper.api.order_place(**buy_args)
+        logging.info(f"{buy_args['symbol']} {buy_args['side']} got {resp=}")
+        resp = Helper.api.order_place(**sell_args)
+        logging.info(f"{sell_args['symbol']} {sell_args['side']} got {resp=}")
+        """
         if O_SETG["mode"] >= 0:
             logging.debug(buy_args)
             resp = Helper.api.order_place(**buy_args)
@@ -96,11 +101,13 @@ def place_orders(dct: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
             logging.debug(sell_args)
             resp = Helper.api.order_place(**sell_args)
             logging.info(f"{sell_args['symbol']} {sell_args['side']} got {resp=}")
-
+        """
+        """
         if O_SETG["mode"] == -1:
             lst_stops.append(buy_args)
         elif O_SETG["mode"] == 1:
             lst_stops.append(sell_args)
+        """
     return lst_stops
 
 

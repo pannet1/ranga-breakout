@@ -29,11 +29,11 @@ def get_historical_data(historic_param: dict[str, Any]) -> Any:
 def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
     return {
         "tsym": row["symbol"] + SFX,
-        "dt": data[0][0],
-        "o": data[0][1],
-        "h": data[0][2],
-        "l": data[0][3],
-        "c": data[0][4],
+        "dt": data[0],
+        "o": data[1],
+        "h": data[2],
+        "l": data[3],
+        "c": data[4],
         "quantity": row["quantity"],
         "token": row["token"],
     }
@@ -53,9 +53,9 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
                 "todate": dt_to_str(""),
             }
             resp = get_historical_data(historic_param)
-            if any(resp) and any(resp[0]):
-                candles[row["symbol"]] = format_candle_data(row, resp)
-                logging.info("getting candles for:", candles[row["symbol"]])
+            if resp is not None and any(resp) and any(resp[0]):
+                candles[row["symbol"]] = format_candle_data(row, resp[0])
+                logging.info(f'getting candles for: {row["symbol"]}')
     except Exception as e:
         logging.error(f"{e} while getting candles")
         print_exc()

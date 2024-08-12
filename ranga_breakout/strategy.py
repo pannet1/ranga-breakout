@@ -1,5 +1,10 @@
-from __init__ import logging, O_FUTL, S_STOPS
-from toolkit.kokoo import timer
+from traceback import print_exc
+from typing import Any  # Importing only the required types
+
+from toolkit.kokoo import dt_to_str, timer
+
+from __init__ import O_FUTL, S_STOPS, SFX, logging
+from api import Helper
 
 
 def is_values_in_list(lst_orders, args):
@@ -19,9 +24,90 @@ def is_values_in_list(lst_orders, args):
         return dct
 
 
+def create_order_args(ohlc, side, price, trigger_price):
+    return dict(
+        symbol=ohlc["tsym"],
+        exchange="NFO",
+        order_type="STOPLOSS_MARKET",
+        product="INTRADAY",  # Options: CARRYFORWARD, INTRADAY
+        quantity=ohlc["quantity"],
+        symboltoken=ohlc["token"],
+        variety="STOPLOSS",
+        duration="DAY",
+        side=side,
+        price=price,
+        trigger_price=trigger_price,
+    )
+
+
+class Breakout:
+    def __init__(self, dct: dict[str, dict[str, Any]]):
+        self.api = Helper.api
+        self.dct = dct
+        defaults = {
+            "fn": self.make_order_params,
+            "buy_args": {},
+            "sell_args": {},
+            "buy_id": None,
+            "sell_id": None,
+        }
+        self.dct.update(defaults)
+
+    def make_order_params(self):
+        try:
+            self.dct["buy_args"] = create_order_args(
+                self.dct,
+                "BUY",
+                float(self.dct["h"]) + 0.10,
+                float(self.dct["h"]) + 0.05,
+            )
+            self.dct["sell_args"] = create_order_args(
+                self.dct,
+                "SELL",
+                float(self.dct["l"]) - 0.10,
+                float(self.dct["l"]) - 0.05,
+            )
+            self.dct["fn"] = self.place_both_orders
+        except Exception as e:
+            logging.error(f"{e} while making order params")
+            print_exc()
+            self.dct["fn"] = None
+
+    def place_both_orders(self):
+        try:
+            args = self.dct
+            # Place buy order
+            resp = Helper.api.order_place(**args["buy_args"])
+            logging.info(
+                f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
+            )
+            self.dct["buy_id"] = resp
+
+            # Place sell order
+            resp = Helper.api.order_place(**args["sell_args"])
+            logging.info(
+                f"{args['sell_args']['symbol']} {args['sell_args']['side']} got {resp=}"
+            )
+            self.dct["sell_id"] = resp
+            self.dct["fn"] = self.is_buy_or_sell
+        except Exception as e:
+            logging.error(f"Error placing orders for {sym}: {e}")
+            print_exc()
+            self.dct["fn"] = None
+
+    def is_buy_or_sell(self):
+        print("not implemented yet")
+        self.dct["fn"] = None
+
+    def run(self, lst_of_orders):
+        self.lst_of_orders = lst_of_orders
+        if self.dct["fn"] is not None:
+            self.dct["fn"]()
+
+
 class Strategy:
-    def __init__(self, api):
-        self.api = api
+    def __init__(self):
+        self.api = Helper.api
         self.lst = []
         if not O_FUTL.is_file_not_2day(S_STOPS):
             self.lst = O_FUTL.read_file(S_STOPS)
@@ -71,10 +157,6 @@ class Strategy:
 
     def run(self):
         try:
-            if not any(self.lst):
-                logging.info("no stop orders")
-                return
-
             dct = self.api.orders
 
             if not isinstance(dct, dict):
@@ -131,10 +213,8 @@ class Strategy:
 
 
 if __name__ == "__main__":
-    from api import Helper
-
     Helper.set_token()
 
-    Sgy = Strategy(Helper.api)
+    Sgy = Strategy()
     if Sgy.is_set:
         Sgy.run()

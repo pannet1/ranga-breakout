@@ -1,27 +1,12 @@
 from traceback import print_exc
 from typing import Any  # Importing only the required types
 
-from toolkit.kokoo import dt_to_str, timer
+from toolkit.kokoo import timer, dt_to_str
 
-from __init__ import O_FUTL, S_STOPS, SFX, logging
+from __init__ import O_FUTL, S_STOPS, logging
 from api import Helper
 
-
-def is_values_in_list(lst_orders, args):
-    dct = {}
-    try:
-        for i in lst_orders:
-            if (
-                i["tradingsymbol"] == args["tradingsymbol"]
-                and i["transactiontype"] == args["transactiontype"]
-            ):
-                if i["status"] == "complete":
-                    dct = i
-                logging.info(i["status"].upper())
-    except Exception as e:
-        logging.error(f"{e} while checking for values in list")
-    finally:
-        return dct
+from history import get_historical_data, get_low_high
 
 
 def create_order_args(ohlc, side, price, trigger_price):
@@ -41,17 +26,30 @@ def create_order_args(ohlc, side, price, trigger_price):
 
 
 class Breakout:
-    def __init__(self, dct: dict[str, dict[str, Any]]):
+    def __init__(self, param: dict[str, dict[str, Any]]):
         self.api = Helper.api
-        self.dct = dct
+        self.dct = dict(
+            tsym=param["tsym"],
+            h=param["h"],
+            l=param["l"],
+            last_price=param["c"],
+            quantity=param["quantity"],
+            token=param["token"],
+        )
+
         defaults = {
             "fn": self.make_order_params,
             "buy_args": {},
             "sell_args": {},
             "buy_id": None,
             "sell_id": None,
+            "entry": 0,
+            "completed_candles": 1,
+            "can_trail": None,
         }
         self.dct.update(defaults)
+        self.dct_of_orders = {}
+        logging.info(self.dct)
 
     def make_order_params(self):
         try:
@@ -76,8 +74,9 @@ class Breakout:
     def place_both_orders(self):
         try:
             args = self.dct
+
             # Place buy order
-            resp = Helper.api.order_place(**args["buy_args"])
+            resp = self.api.order_place(**args["buy_args"])
             logging.info(
                 f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
             )
@@ -89,20 +88,144 @@ class Breakout:
                 f"{args['sell_args']['symbol']} {args['sell_args']['side']} got {resp=}"
             )
             self.dct["sell_id"] = resp
+
             self.dct["fn"] = self.is_buy_or_sell
         except Exception as e:
-            logging.error(f"Error placing orders for {sym}: {e}")
+            logging.error(f"Error placing orders for {args['tsym']}: {e}")
             print_exc()
             self.dct["fn"] = None
 
     def is_buy_or_sell(self):
-        print("not implemented yet")
-        self.dct["fn"] = None
+        """
+        determine if buy or sell order is completed
+        """
+        try:
+            buy = self.dct["buy_id"]
+            sell = self.dct["sell_id"]
+            if self.dct_of_orders[str(buy)]["status"] == "complete":
+                self.dct["entry"] = 1
+                self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
+                self.dct["stop_price"] = self.dct["l"]
+            elif self.dct_of_orders[str(sell)]["status"] == "complete":
+                self.dct["entry"] = -1
+                self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
+                self.dct["stop_price"] = self.dct["h"]
 
-    def run(self, lst_of_orders):
-        self.lst_of_orders = lst_of_orders
-        if self.dct["fn"] is not None:
-            self.dct["fn"]()
+            if self.dct["entry"] != 0:
+                logging.info(f"no buy/sell complete for {self.dct['tsym']}")
+                self.dct["fn"] = self.trail_stoploss
+            else:
+                logging.debug(f"order not complete for {self.dct['tsym']}")
+        except Exception as e:
+            logging.error(f"error is_buy_or_sell {e}")
+            print_exc()
+
+    def trail_stoploss(self):
+        """
+        if candles  count is changed and then check ltp
+        """
+        try:
+
+            if self.dct["can_trail"](self.dct):
+
+                # get historical candles
+                params = dict(
+                    exchange="NFO",
+                    symboltoken=self.dct["token"],
+                    interval="FIFTEEN_MINUTE",
+                    fromdata=dt_to_str("09:15"),
+                    todate=dt_to_str(""),
+                )
+                candles_now = get_historical_data(params)
+                if len(candles_now) > self.candle_count:
+
+                    is_flag = False
+                    # buy trade
+                    if self.dct["entry"] == 1:
+                        args = dict(
+                            orderid=self.dct["sell_id"],
+                            price=float(self.dct["l"]) - 0.10,
+                            triggerprice=float(self.dct["l"]) - 0.05,
+                        )
+                        is_flag = (
+                            min(candles_now[-3][3], candles_now[-2][3])
+                            > self.dct["stop_price"]
+                        )
+                    else:
+                        args = dict(
+                            orderid=self.dct["buy_id"],
+                            price=float(self.dct["h"]) + 0.10,
+                            triggerprice=float(self.dct["h"]) + 0.05,
+                        )
+                        is_flag = (
+                            max(candles_now[-3][2], candles_now[-2][2])
+                            < self.dct["stop_price"]
+                        )
+                    # modify order
+                    """
+                    "variety":"NORMAL",
+                    "orderid":"201020000000080",
+                    "ordertype":"LIMIT",
+                    "producttype":"INTRADAY",
+                    "duration":"DAY",
+                    "price":"194.00",
+                    "quantity":"1",
+                    "tradingsymbol":"SBIN-EQ",
+                    "symboltoken":"3045",
+                    "exchange":"NSE"
+                    """
+                    if is_flag:
+                        resp = Helper.api.order_modify(args)
+                        print(resp)
+
+                        # update high and low except for the last
+                        self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
+                        # update candle count if order is placed
+                        self.candle_count = len(candles_now)
+
+            timer(1)
+
+        except Exception as e:
+            logging.error(f"while trailstop {e}")
+            print_exc()
+
+    def run(self, lst_of_orders, dct_of_ltp):
+        try:
+            if any(lst_of_orders):
+                self.dct_of_orders = {
+                    dct.get("orderid", "dummy"): dct for dct in lst_of_orders
+                }
+            self.dct["last_price"] = dct_of_ltp.get(
+                self.dct["token"], self.dct["last_price"]
+            )
+            timer(1)
+            if self.dct["fn"] is not None:
+                logging.debug(f"{self.dct['tsym']} run {self.dct['fn']}")
+                self.dct["fn"]()
+        except Exception as e:
+            print_exc()
+
+
+"""
+   helpers used  for strategy begins 
+"""
+
+
+def is_values_in_list(lst_orders, args):
+    dct = {}
+    try:
+        for i in lst_orders:
+            if (
+                i["tradingsymbol"] == args["tradingsymbol"]
+                and i["transactiontype"] == args["transactiontype"]
+            ):
+                if i["status"] == "complete":
+                    dct = i
+                logging.info(i["status"].upper())
+    except Exception as e:
+        logging.error(f"{e} while checking for values in list")
+    finally:
+        return dct
 
 
 class Strategy:

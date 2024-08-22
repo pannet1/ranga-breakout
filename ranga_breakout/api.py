@@ -27,6 +27,11 @@ if __name__ == "__main__":
     Helper.set_token()
     api = Helper.api
 
+    params = {"NFO": [35603, 46845]}
+    resp = api.obj.getMarketData("LTP", params)
+    print(resp)
+    __import__("time").sleep(5)
+
     ord = api.orders
     df = pd.DataFrame(ord["data"])
     print(df)

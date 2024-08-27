@@ -1,5 +1,5 @@
 from __init__ import CNFG, logging
-from api_helper import login
+from api import Helper
 
 
 def get_order_ids(buy_orders, sell_orders):
@@ -14,7 +14,7 @@ def get_order_ids(buy_orders, sell_orders):
 
 def run():
     try:
-        api = login(CNFG)
+        api = Helper.api
         ord = api.orders["data"]
         # find orders that have both buy and sell legs
         # with status as open or trigger pending
@@ -38,4 +38,38 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    api = Helper.api
+    """
+    args = {
+        "variety": "STOPLOSS",
+        "orderid": "240826100514712",
+        "transactiontype": "BUY",
+        "tradingsymbol": "CANBK-EQ",
+        "symboltoken": 10794,
+        "exchange": "NSE",
+        "ordertype": "STOPLOSS_MARKET",
+        "quantity": 1,
+        "triggerprice": 112.60,
+        "price": 112.65,
+        "duration": "DAY",
+        "product": "INTRADAY",
+    }
+    """
+    args = {
+        "tradingsymbol": "HEROMOTOCO-EQ",
+        "exchange": "NSE",
+        "order_type": "STOPLOSS_MARKET",
+        "product": "INTRADAY",
+        "quantity": 1,
+        "symboltoken": "1348",
+        "variety": "STOPLOSS",
+        "duration": "DAY",
+        "side": "SELL",
+        "price": 5352.599999999999,
+        "trigger_price": 5325.95,
+        "orderid": "240827100866862",
+        "triggerprice": 5352.65,
+    }
+
+    resp = api.order_modify(**args)
+    print(resp)

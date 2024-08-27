@@ -3,7 +3,7 @@ from typing import Any  # Importing only the required types
 
 from toolkit.kokoo import timer, dt_to_str
 
-from __init__ import O_FUTL, S_STOPS, logging
+from __init__ import logging
 from api import Helper
 
 from history import get_historical_data, get_low_high
@@ -12,7 +12,7 @@ from history import get_historical_data, get_low_high
 def create_order_args(ohlc, side, price, trigger_price):
     return dict(
         symbol=ohlc["tsym"],
-        exchange="NFO",
+        exchange=ohlc["exchange"],
         order_type="STOPLOSS_MARKET",
         product="INTRADAY",  # Options: CARRYFORWARD, INTRADAY
         quantity=ohlc["quantity"],
@@ -26,10 +26,13 @@ def create_order_args(ohlc, side, price, trigger_price):
 
 
 class Breakout:
+    def last_message(self):
+        print(self.message)
+
     def __init__(self, param: dict[str, dict[str, Any]]):
-        self.api = Helper.api
         self.dct = dict(
             tsym=param["tsym"],
+            exchange=param["exchange"],
             h=param["h"],
             l=param["l"],
             last_price=param["c"],
@@ -44,11 +47,13 @@ class Breakout:
             "buy_id": None,
             "sell_id": None,
             "entry": 0,
-            "completed_candles": 1,
             "can_trail": None,
+            "stop_price": None,
         }
+        self.candle_count = 2
         self.dct.update(defaults)
         self.dct_of_orders = {}
+        self.message = None
         logging.info(self.dct)
 
     def make_order_params(self):
@@ -67,16 +72,18 @@ class Breakout:
             )
             self.dct["fn"] = self.place_both_orders
         except Exception as e:
-            logging.error(f"{e} while making order params")
+            fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            logging.error(self.message)
             print_exc()
-            self.dct["fn"] = None
+            self.dct["fn"] = self.last_message
 
     def place_both_orders(self):
         try:
             args = self.dct
 
             # Place buy order
-            resp = self.api.order_place(**args["buy_args"])
+            resp = Helper.api.order_place(**args["buy_args"])
             logging.info(
                 f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
             )
@@ -91,9 +98,11 @@ class Breakout:
 
             self.dct["fn"] = self.is_buy_or_sell
         except Exception as e:
-            logging.error(f"Error placing orders for {args['tsym']}: {e}")
+            fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            logging.error(self.message)
             print_exc()
-            self.dct["fn"] = None
+            self.dct["fn"] = self.last_message
 
     def is_buy_or_sell(self):
         """
@@ -117,50 +126,77 @@ class Breakout:
             else:
                 logging.debug(f"order not complete for {self.dct['tsym']}")
         except Exception as e:
-            logging.error(f"error is_buy_or_sell {e}")
+            fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            logging.error(self.message)
             print_exc()
+            self.dct["fn"] = self.last_message
+
+    def get_history(self):
+        params = {
+            "exchange": self.dct["exchange"],
+            "symboltoken": self.dct["token"],
+            "interval": "FIVE_MINUTE",
+            "fromdate": dt_to_str("9:15"),
+            "todate": dt_to_str(""),
+        }
+        return get_historical_data(params)
+
+    def _is_modify_order(self, candles_now):
+        try:
+            is_flag = False
+            # buy trade
+            if self.dct["entry"] == 1:
+                stop_now = min(candles_now[-3][3], candles_now[-2][3])
+                is_flag = stop_now > self.dct["stop_price"]
+                args = dict(
+                    orderid=self.dct["sell_id"],
+                    price=stop_now - 0.10,
+                    triggerprice=stop_now - 0.05,
+                )
+                self.dct["sell_args"].update(args)
+                args = self.dct["sell_args"]
+            else:
+                stop_now = max(candles_now[-3][2], candles_now[-2][2])
+                is_flag = stop_now < self.dct["stop_price"]
+                args = dict(
+                    orderid=self.dct["buy_id"],
+                    price=stop_now + 0.10,
+                    triggerprice=stop_now + 0.05,
+                )
+                self.dct["buy_args"].update(args)
+                args = self.dct["buy_args"]
+            if is_flag:
+                print(
+                    f'new stop {stop_now} is going to replace {self.dct["stop_price"]}'
+                )
+                return args, stop_now
+            else:
+                return {}, None
+        except Exception as e:
+            fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            logging.error(self.message)
+            print_exc()
+            self.dct["fn"] = self.last_message
 
     def trail_stoploss(self):
         """
         if candles  count is changed and then check ltp
         """
         try:
-
+            print(
+                f' low:{self.dct["l"]} high:{self.dct["h"]} candle: {self.candle_count} stop_loss:  {self.dct["stop_price"]} '
+            )
             if self.dct["can_trail"](self.dct):
 
-                # get historical candles
-                params = dict(
-                    exchange="NFO",
-                    symboltoken=self.dct["token"],
-                    interval="FIFTEEN_MINUTE",
-                    fromdata=dt_to_str("09:15"),
-                    todate=dt_to_str(""),
-                )
-                candles_now = get_historical_data(params)
-                if len(candles_now) > self.candle_count:
+                print(f'{self.dct["last_price"]} is a breakout for {self.dct["tsym"]}')
 
-                    is_flag = False
-                    # buy trade
-                    if self.dct["entry"] == 1:
-                        args = dict(
-                            orderid=self.dct["sell_id"],
-                            price=float(self.dct["l"]) - 0.10,
-                            triggerprice=float(self.dct["l"]) - 0.05,
-                        )
-                        is_flag = (
-                            min(candles_now[-3][3], candles_now[-2][3])
-                            > self.dct["stop_price"]
-                        )
-                    else:
-                        args = dict(
-                            orderid=self.dct["buy_id"],
-                            price=float(self.dct["h"]) + 0.10,
-                            triggerprice=float(self.dct["h"]) + 0.05,
-                        )
-                        is_flag = (
-                            max(candles_now[-3][2], candles_now[-2][2])
-                            < self.dct["stop_price"]
-                        )
+                candles_now = self.get_history()
+                if len(candles_now) > self.candle_count:
+                    print(f"{candles_now} > {self.candle_count}")
+
+                    args, stop_now = self._is_modify_order(candles_now)
                     # modify order
                     """
                     "variety":"NORMAL",
@@ -174,20 +210,23 @@ class Breakout:
                     "symboltoken":"3045",
                     "exchange":"NSE"
                     """
-                    if is_flag:
-                        resp = Helper.api.order_modify(args)
-                        print(resp)
-
+                    if any(args) and stop_now:
+                        logging.debug(f"order modify {args}")
+                        resp = Helper.api.order_modify(**args)
+                        logging.debug(f"order modify {resp}")
+                        self.dct["stop_price"] = stop_now
                         # update high and low except for the last
                         self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
                         # update candle count if order is placed
                         self.candle_count = len(candles_now)
-
             timer(1)
 
         except Exception as e:
-            logging.error(f"while trailstop {e}")
+            fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            logging.error(self.message)
             print_exc()
+            self.dct["fn"] = self.last_message
 
     def run(self, lst_of_orders, dct_of_ltp):
         try:
@@ -200,144 +239,37 @@ class Breakout:
             )
             timer(1)
             if self.dct["fn"] is not None:
-                logging.debug(f"{self.dct['tsym']} run {self.dct['fn']}")
+                print(
+                    f"{self.dct['tsym']} run {self.dct['fn']} {self.dct['last_price']}"
+                )
                 self.dct["fn"]()
         except Exception as e:
+            fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            logging.error(self.message)
             print_exc()
-
-
-"""
-   helpers used  for strategy begins 
-"""
-
-
-def is_values_in_list(lst_orders, args):
-    dct = {}
-    try:
-        for i in lst_orders:
-            if (
-                i["tradingsymbol"] == args["tradingsymbol"]
-                and i["transactiontype"] == args["transactiontype"]
-            ):
-                if i["status"] == "complete":
-                    dct = i
-                logging.info(i["status"].upper())
-    except Exception as e:
-        logging.error(f"{e} while checking for values in list")
-    finally:
-        return dct
-
-
-class Strategy:
-    def __init__(self):
-        self.api = Helper.api
-        self.lst = []
-        if not O_FUTL.is_file_not_2day(S_STOPS):
-            self.lst = O_FUTL.read_file(S_STOPS)
-        self.is_set = True if any(self.lst) else False
-
-    """
-    dct = {
-        "variety": "NORMAL",
-        "ordertype": "LIMIT",
-        "producttype": "INTRADAY",
-        "duration": "DAY",
-        "price": 432.05,
-        "triggerprice": 432.1,
-        "quantity": "1600",
-        "disclosedquantity": "0",
-        "squareoff": 0.0,
-        "stoploss": 0.0,
-        "trailingstoploss": 0.0,
-        "tradingsymbol": "ITC27JUN24FUT",
-        "transactiontype": "SELL",
-        "exchange": "NFO",
-        "symboltoken": "52178",
-        "ordertag": "",
-        "instrumenttype": "FUTSTK",
-        "strikeprice": -1.0,
-        "optiontype": "XX",
-        "expirydate": "27JUN2024",
-        "lotsize": "1600",
-        "cancelsize": "0",
-        "averageprice": 432.05,
-        "filledshares": "1600",
-        "unfilledshares": "0",
-        "orderid": "240612000182183",
-        "text": "",
-        "status": "complete",
-        "orderstatus": "complete",
-        "updatetime": "12-Jun-2024 09:45:39",
-        "exchtime": "12-Jun-2024 09:45:39",
-        "exchorderupdatetime": "12-Jun-2024 09:45:39",
-        "fillid": "",
-        "filltime": "",
-        "parentorderid": "",
-        "uniqueorderid": "119729f9-1216-4007-b7da-196b630b64dc",
-        "exchangeorderid": "2300000017065849",
-    }
-    """
-
-    def run(self):
-        try:
-            dct = self.api.orders
-
-            if not isinstance(dct, dict):
-                logging.error("'dct' is not a dictionary in run()")
-                return
-
-            if "data" not in dct:
-                logging.error("'data' key not found in 'dct'.")
-                return
-
-            lst_orders = dct["data"]
-
-            # Work with the copy of stop orders
-            for i in self.lst[:]:
-                try:
-                    print(f'{i["side"]} stop order from file for {i["symbol"]}')
-                    args = {"tradingsymbol": i["symbol"]}
-                    args["transactiontype"] = "SELL" if i["side"] == "BUY" else "BUY"
-
-                    # Filter the order book containing only this symbol
-                    lst_of_entries = [
-                        j
-                        for j in lst_orders
-                        if j["tradingsymbol"] == args["tradingsymbol"]
-                        and j["transactiontype"] == args["transactiontype"]
-                    ]
-
-                    # Do we have any item in the list
-                    if lst_of_entries:
-                        dct_found = is_values_in_list(lst_of_entries, args)
-                        status = dct_found.get("status", "NOT_COMPLETE")
-                        if status == "complete":
-                            resp = self.api.order_place(**i)
-                            logging.info(f"{resp} stop order for i['tradingsymbol']")
-                            timer(1)
-                            self.lst.remove(i)
-                    else:
-                        print(f'{i["side"]} stop order for {i["symbol"]} has no match')
-                        self.lst.remove(i)
-
-                except KeyError as ke:
-                    logging.error(f"KeyError: {ke} - Order: {i}")
-                except Exception as e:
-                    logging.error(f"Unexpected error processing order {i}: {e}")
-
-            self.wait_and_log_remaining_orders()
-
-        except Exception as e:
-            logging.error(e)
-
-    def wait_and_log_remaining_orders(self):
-        timer(2)
-        print(f"{len(self.lst)} stop orders found")
+            self.dct["fn"] = self.last_message
 
 
 if __name__ == "__main__":
-    Helper.set_token()
+    from main import get_ltp
+    from universe import stocks_in_play
+    from history import get_candles
 
-    Sgy = Strategy()
-    if Sgy.is_set:
-        Sgy.run()
+    try:
+        df = stocks_in_play()
+        params = get_candles(df)
+
+        # create strategy object
+        for _, param in params.items():
+            obj = Breakout(param)
+            break
+
+        resp = Helper.api.orders
+        lst_of_orders = resp.get("data", [])
+        dct_of_ltp = get_ltp(params)
+        obj.run(lst_of_orders, dct_of_ltp)
+        obj.get_history()
+    except Exception as e:
+        print_exc()
+        print(e)

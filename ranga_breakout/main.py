@@ -7,13 +7,28 @@ from api import Helper
 from strategy import Breakout
 from universe import stocks_in_play
 from history import get_candles
+from exit_and_go import run
 
 
-def get_ltp(lst_of_tokens):
+def exch_token(params):
     try:
+        exch_token_dict = {}
+        # create list of tokens
+        lst = [v for v in params.values()]
+        exch = lst[0]["exchange"]
+        lst = [dct["token"] for dct in lst]
+        exch_token_dict = {exch: lst}
+        return exch_token_dict
+    except Exception as e:
+        print_exc()
+        logging.error(f"{e} while creating exch_token_dict")
+
+
+def get_ltp(params):
+    try:
+        exch_token_dict = exch_token(params)
         new_dct = {}
-        params = {"NFO": lst_of_tokens}
-        resp = Helper.api.obj.getMarketData("LTP", params)
+        resp = Helper.api.obj.getMarketData("LTP", exch_token_dict)
         lst_of_dict = resp["data"]["fetched"]
         new_dct = {dct["symbolToken"]: dct["ltp"] for dct in lst_of_dict}
     except Exception as e:
@@ -24,7 +39,6 @@ def get_ltp(lst_of_tokens):
 
 def main():
     try:
-        Helper.set_token()
         df = stocks_in_play()
         while not is_time_past(O_SETG["start"]):
             print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
@@ -40,18 +54,16 @@ def main():
             for _, param in params.items():
                 lst.append(Breakout(param))
 
-        # create list of tokens
-        lst_of_tokens = [v["token"] for v in params.values()]
-
         while not is_time_past(O_SETG["stop"]):
             resp = Helper.api.orders
             lst_of_orders = []
             if isinstance(resp, dict):
                 lst_of_orders = resp.get("data", [])
-            dct_of_ltp = get_ltp(lst_of_tokens)
+            dct_of_ltp = get_ltp(params)
             for obj in lst:
                 obj.run(lst_of_orders, dct_of_ltp)
         else:
+            run()
             kill_tmux()
     except Exception as e:
         print_exc()

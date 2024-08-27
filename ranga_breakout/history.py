@@ -1,7 +1,7 @@
 from decorator import retry
 from traceback import print_exc
 from typing import Any  # Importing only the required types
-from __init__ import logging, SFX
+from __init__ import logging
 from toolkit.kokoo import dt_to_str, timer
 from api import Helper
 
@@ -43,7 +43,8 @@ def get_historical_data(historic_param: dict[str, Any]) -> Any:
 
 def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
     return {
-        "tsym": row["symbol"] + SFX,
+        "exchange": row["exchange"],
+        "tsym": row["symbol"],
         "h": data[2],
         "l": data[3],
         "c": data[4],
@@ -58,12 +59,13 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
 
         for _, row in df.iterrows():
             historic_param = {
-                "exchange": "NFO",
+                "exchange": row["exchange"],
                 "symboltoken": row["token"],
                 "interval": "THIRTY_MINUTE",
                 "fromdate": dt_to_str("9:15"),
                 "todate": dt_to_str(""),
             }
+            print(historic_param)
             resp = get_historical_data(historic_param)
             if resp is not None and any(resp) and any(resp[0]):
                 candles[row["symbol"]] = format_candle_data(row, resp[0])

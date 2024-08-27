@@ -1,6 +1,7 @@
 from __init__ import CNFG, S_DATA, O_UTIL, logging
 import pandas as pd
-from api_helper import login
+from api import Helper
+from traceback import print_exc
 
 
 def close_positions(pos):
@@ -27,34 +28,40 @@ def close_positions(pos):
 
 
 def cancel_orders(ord):
-    for i in ord:
-        if i["status"] == "open" or i["status"] == "trigger pending":
-            yield {"order_id": i["orderid"], "variety": "NORMAL"}
+    try:
+        for i in ord:
+            print(f"trying to cancel order for {i['tradingsymbol']}")
+            if i["status"] == "open" or i["status"] == "trigger pending":
+                yield {"order_id": i["orderid"], "variety": "NORMAL"}
+    except Exception as e:
+        print(e)
 
 
 def run():
     try:
-        api = login(CNFG)
 
-        ord = api.orders["data"]
+        ord = Helper.api.orders["data"]
         for i in cancel_orders(ord):
             O_UTIL.slp_til_nxt_sec()
-            logging.info(f"close all: cancelling order {i['tradingsymbol']}")
-            api.order_cancel(**i)
+            logging.info(f"close all: cancelling order {i['order_id']}")
+            Helper.api.order_cancel(**i)
 
-        pos = api.positions["data"]
+        pos = Helper.api.positions["data"]
         for order_params in close_positions(pos):
-            logging.info(
-                "close all: closing position for {order_params['tradingsymbol']}"
-            )
+            logging.info(f"closing position for {order_params['tradingsymbol']}")
             O_UTIL.slp_til_nxt_sec()
-            resp = api.order_place(**order_params)
+            resp = Helper.api.order_place(**order_params)
             logging.info(resp)
-        pd.DataFrame(api.orders["data"]).to_csv(S_DATA + "orders.csv", index=False)
-        pd.DataFrame(api.positions["data"]).to_csv(
-            S_DATA + "positions.csv", index=False
-        )
+
+        O_UTIL.slp_til_nxt_sec()
+        ord = Helper.api.orders["data"]
+        pd.DataFrame(ord).to_csv(S_DATA + "orders.csv", index=False)
+
+        O_UTIL.slp_til_nxt_sec()
+        pos = Helper.api.positions["data"]
+        pd.DataFrame(pos).to_csv(S_DATA + "positions.csv", index=False)
     except Exception as e:
+        print_exc()
         logging.error(e)
 
 

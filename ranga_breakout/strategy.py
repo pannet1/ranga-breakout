@@ -126,11 +126,11 @@ class Breakout:
             else:
                 logging.debug(f"order not complete for {self.dct['tsym']}")
         except Exception as e:
-            fn = self.dct.pop("fn")
-            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            # fn = self.dct.pop("fn")
+            self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = self.last_message
+            # self.dct["fn"] = self.last_message
 
     def get_history(self):
         params = {
@@ -230,9 +230,9 @@ class Breakout:
 
     def run(self, lst_of_orders, dct_of_ltp):
         try:
-            if any(lst_of_orders):
+            if isinstance(lst_of_orders, list):
                 self.dct_of_orders = {
-                    dct.get("orderid", "dummy"): dct for dct in lst_of_orders
+                    dct["orderid"]: dct for dct in lst_of_orders if "orderid" in dct
                 }
             self.dct["last_price"] = dct_of_ltp.get(
                 self.dct["token"], self.dct["last_price"]
@@ -244,11 +244,9 @@ class Breakout:
                 )
                 self.dct["fn"]()
         except Exception as e:
-            fn = self.dct.pop("fn")
-            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            self.message = f"{self.dct['tsym']} encountered {e} while run"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = self.last_message
 
 
 if __name__ == "__main__":

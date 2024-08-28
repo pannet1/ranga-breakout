@@ -136,7 +136,7 @@ class Breakout:
         params = {
             "exchange": self.dct["exchange"],
             "symboltoken": self.dct["token"],
-            "interval": "FIVE_MINUTE",
+            "interval": "FIFTEEN_MINUTE",
             "fromdate": dt_to_str("9:15"),
             "todate": dt_to_str(""),
         }

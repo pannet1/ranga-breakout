@@ -7,7 +7,7 @@ from api import Helper
 from strategy import Breakout
 from universe import stocks_in_play
 from history import get_candles
-from exit_and_go import run
+from exit_and_go import cancel_all_orders, close_all_positions
 
 
 def exch_token(params):
@@ -55,15 +55,21 @@ def main():
                 lst.append(Breakout(param))
 
         while not is_time_past(O_SETG["stop"]):
+            # get orders
             resp = Helper.api.orders
             lst_of_orders = []
             if isinstance(resp, dict):
                 lst_of_orders = resp.get("data", [])
+
+            # get ltp
             dct_of_ltp = get_ltp(params)
+
+            # send it to the strategy instance
             for obj in lst:
                 obj.run(lst_of_orders, dct_of_ltp)
         else:
-            run()
+            cancel_all_orders()
+            close_all_positions()
             kill_tmux()
     except Exception as e:
         print_exc()

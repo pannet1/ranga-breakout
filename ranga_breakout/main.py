@@ -8,6 +8,7 @@ from strategy import Breakout
 from universe import stocks_in_play
 from history import get_candles
 from exit_and_go import cancel_all_orders, close_all_positions
+from typing import List, Dict
 
 
 def exch_token(params):
@@ -26,8 +27,8 @@ def exch_token(params):
 
 def get_ltp(params):
     try:
-        exch_token_dict = exch_token(params)
         new_dct = {}
+        exch_token_dict = exch_token(params)
         resp = Helper.api.obj.getMarketData("LTP", exch_token_dict)
         lst_of_dict = resp["data"]["fetched"]
         new_dct = {dct["symbolToken"]: dct["ltp"] for dct in lst_of_dict}
@@ -37,36 +38,27 @@ def get_ltp(params):
         return new_dct
 
 
+def get_params():
+    df = stocks_in_play()
+    while not is_time_past(O_SETG["start"]):
+        print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
+        timer(1)
+    else:
+        print("HAPPY TRADING")
+
+    return get_candles(df)
+
+
 def main():
     try:
-        df = stocks_in_play()
-        while not is_time_past(O_SETG["start"]):
-            print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
-            timer(1)
-        else:
-            print("HAPPY TRADING")
-
-        params = get_candles(df)
-
+        params = get_params()
         # create strategy object
-        lst = []
         if O_SETG["mode"] == 0:
-            for _, param in params.items():
-                lst.append(Breakout(param))
+            strategies = [Breakout(param) for param in params.values()]
 
         while not is_time_past(O_SETG["stop"]):
-            # get orders
-            resp = Helper.api.orders
-            lst_of_orders = []
-            if isinstance(resp, dict):
-                lst_of_orders = resp.get("data", [])
-
-            # get ltp
-            dct_of_ltp = get_ltp(params)
-
-            # send it to the strategy instance
-            for obj in lst:
-                obj.run(lst_of_orders, dct_of_ltp)
+            for obj in strategies:
+                obj.run(Helper.orders, get_ltp(params))
         else:
             cancel_all_orders()
             close_all_positions()

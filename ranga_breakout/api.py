@@ -21,6 +21,15 @@ class Helper:
             cls.ao = get_token()
         return cls.ao
 
+    @property
+    def orders(cls):
+        try:
+            # get orders
+            return cls.ao.orders["data"]
+        except Exception as e:
+            print(e)
+            return []
+
 
 if __name__ == "__main__":
     from __init__ import CNFG, S_DATA
@@ -41,8 +50,7 @@ if __name__ == "__main__":
     print(resp)
 
     ord = hlpr.orders
-    print(ord)
-    df = pd.DataFrame(ord["data"])
+    df = pd.DataFrame(ord)
     print(df)
     df.to_csv(S_DATA + "orders.csv")
 

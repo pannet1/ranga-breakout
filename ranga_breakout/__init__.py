@@ -4,7 +4,7 @@ from toolkit.utilities import Utilities
 from pprint import pprint
 
 S_DATA = "../data/"
-logging = Logger(10)
+logging = Logger(10, S_DATA + "log.txt")
 O_FUTL = Fileutils()
 O_UTIL = Utilities()
 

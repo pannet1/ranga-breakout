@@ -111,11 +111,11 @@ class Breakout:
         try:
             buy = self.dct["buy_id"]
             sell = self.dct["sell_id"]
-            if self.dct_of_orders[str(buy)]["status"] == "complete":
+            if self.dct_of_orders[buy]["status"] == "complete":
                 self.dct["entry"] = 1
                 self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
                 self.dct["stop_price"] = self.dct["l"]
-            elif self.dct_of_orders[str(sell)]["status"] == "complete":
+            elif self.dct_of_orders[sell]["status"] == "complete":
                 self.dct["entry"] = -1
                 self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
                 self.dct["stop_price"] = self.dct["h"]
@@ -127,8 +127,8 @@ class Breakout:
                 logging.debug(f"order not complete for {self.dct['tsym']}")
         except Exception as e:
             # fn = self.dct.pop("fn")
-            self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
-            logging.error(self.message)
+            message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
+            logging.error(message)
             print_exc()
             # self.dct["fn"] = self.last_message
 
@@ -263,11 +263,10 @@ if __name__ == "__main__":
             obj = Breakout(param)
             break
 
-        resp = Helper.api.orders
-        lst_of_orders = resp.get("data", [])
+        lst_of_orders = Helper.api.orders
         dct_of_ltp = get_ltp(params)
+        obj.dct["fn"] = obj.is_buy_or_sell
         obj.run(lst_of_orders, dct_of_ltp)
-        obj.get_history()
     except Exception as e:
         print_exc()
         print(e)

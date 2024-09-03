@@ -51,6 +51,7 @@ def get_params():
 
 def main():
     try:
+        Helper.api
         params = get_params()
         # create strategy object
         if O_SETG["mode"] == 0:

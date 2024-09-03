@@ -21,11 +21,24 @@ class Helper:
             cls.ao = get_token()
         return cls.ao
 
+    @classmethod
     @property
     def orders(cls):
         try:
             # get orders
-            return cls.ao.orders["data"]
+            resp = cls.ao.orders
+            return resp["data"]
+        except Exception as e:
+            print(e)
+            return []
+
+    @classmethod
+    @property
+    def positions(cls):
+        try:
+            # get orders
+            resp = cls.ao.positions
+            return resp["data"]
         except Exception as e:
             print(e)
             return []
@@ -37,8 +50,9 @@ if __name__ == "__main__":
     from toolkit.kokoo import dt_to_str
     from history import get_historical_data
 
-    hlpr = Helper.api
+    Helper.api
 
+    """
     historicParam = {
         "exchange": "NSE",
         "symboltoken": 317,
@@ -48,17 +62,16 @@ if __name__ == "__main__":
     }
     resp = get_historical_data(historicParam)
     print(resp)
-
-    ord = hlpr.orders
+    """
+    ord = Helper.orders
     df = pd.DataFrame(ord)
     print(df)
     df.to_csv(S_DATA + "orders.csv")
 
-    pos = hlpr.positions["data"]
+    pos = Helper.positions
     df = pd.DataFrame(pos)
     print(df)
     # find sum of of pnl column in df
-
     df.to_csv(S_DATA + "positions.csv")
     lst = df["pnl"].astype(float).tolist()
     pnl = sum(lst)

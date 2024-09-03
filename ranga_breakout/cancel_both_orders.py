@@ -54,7 +54,6 @@ if __name__ == "__main__":
         "duration": "DAY",
         "product": "INTRADAY",
     }
-    """
     args = {
         "tradingsymbol": "HEROMOTOCO-EQ",
         "exchange": "NSE",
@@ -73,3 +72,5 @@ if __name__ == "__main__":
 
     resp = api.order_modify(**args)
     print(resp)
+    """
+    run()

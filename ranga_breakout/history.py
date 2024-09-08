@@ -53,17 +53,6 @@ def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
     }
 
 
-def get_history(self):
-    params = {
-        "exchange": self.dct["exchange"],
-        "symboltoken": self.dct["token"],
-        "interval": "FIFTEEN_MINUTE",
-        "fromdate": dt_to_str("9:15"),
-        "todate": dt_to_str(""),
-    }
-    return get_historical_data(params)
-
-
 def get_candles(df: Any) -> dict[str, dict[str, Any]]:
     try:
         candles = {}
@@ -73,7 +62,7 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
                 "exchange": row["exchange"],
                 "symboltoken": row["token"],
                 "interval": "THIRTY_MINUTE",
-                "fromdate": dt_to_str("09:15"),
+                "fromdate": dt_to_str("9:15"),
                 "todate": dt_to_str(""),
             }
             print(historic_param)

@@ -8,6 +8,8 @@ from api import Helper
 
 from history import get_historical_data, get_low_high
 
+from pprint import pprint
+
 
 def create_order_args(ohlc, side, price, trigger_price):
     return dict(
@@ -26,8 +28,6 @@ def create_order_args(ohlc, side, price, trigger_price):
 
 
 class Breakout:
-    def last_message(self):
-        print(self.message)
 
     def __init__(self, param: dict[str, dict[str, Any]]):
         self.dct = dict(
@@ -46,7 +46,7 @@ class Breakout:
             "sell_args": {},
             "buy_id": None,
             "sell_id": None,
-            "entry": 0,
+            "entry": None,
             "can_trail": None,
             "stop_price": None,
         }
@@ -76,7 +76,7 @@ class Breakout:
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = self.last_message
+            self.dct["fn"] = None
 
     def place_both_orders(self):
         try:
@@ -102,25 +102,27 @@ class Breakout:
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = self.last_message
+            self.dct["fn"] = None
+
+    def _is_buy_or_sell(self, operation):
+        buy_or_sell = self.dct[f"{operation}_id"]
+        return self.dct_of_orders[buy_or_sell]["status"] == "complete"
 
     def is_buy_or_sell(self):
         """
         determine if buy or sell order is completed
         """
         try:
-            buy = self.dct["buy_id"]
-            sell = self.dct["sell_id"]
-            if self.dct_of_orders[buy]["status"] == "complete":
-                self.dct["entry"] = 1
+            if self._is_buy_or_sell("buy"):
+                self.dct["entry"] = "buy"
                 self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
                 self.dct["stop_price"] = self.dct["l"]
-            elif self.dct_of_orders[sell]["status"] == "complete":
-                self.dct["entry"] = -1
+            elif self._is_buy_or_sell("sell"):
+                self.dct["entry"] = "sell"
                 self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
                 self.dct["stop_price"] = self.dct["h"]
 
-            if self.dct["entry"] != 0:
+            if self.dct["entry"] is None:
                 logging.info(f"no buy/sell complete for {self.dct['tsym']}")
                 self.dct["fn"] = self.trail_stoploss
             else:
@@ -130,7 +132,6 @@ class Breakout:
             message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
             logging.error(message)
             print_exc()
-            # self.dct["fn"] = self.last_message
 
     def get_history(self):
         params = {
@@ -146,7 +147,7 @@ class Breakout:
         try:
             is_flag = False
             # buy trade
-            if self.dct["entry"] == 1:
+            if self.dct["entry"] == "buy":
                 stop_now = min(candles_now[-3][3], candles_now[-2][3])
                 is_flag = stop_now > self.dct["stop_price"]
                 args = dict(
@@ -178,23 +179,27 @@ class Breakout:
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = self.last_message
 
     def trail_stoploss(self):
         """
         if candles  count is changed and then check ltp
         """
         try:
-            print(
-                f' low:{self.dct["l"]} high:{self.dct["h"]} candle: {self.candle_count} stop_loss:  {self.dct["stop_price"]} '
-            )
+
+            # check if stop loss is already hit
+            if self._is_buy_or_sell(self.dct["entry"]):
+                self.dct["fn"] = None
+                message = "trail complete"
+                return
+
             if self.dct["can_trail"](self.dct):
-
                 print(f'{self.dct["last_price"]} is a breakout for {self.dct["tsym"]}')
-
                 candles_now = self.get_history()
                 if len(candles_now) > self.candle_count:
-                    print(f"{candles_now} > {self.candle_count}")
+                    pprint(candles_now)
+                    print(
+                        f"curr candle:{len(candles_now)} > prev candle:{self.candle_count}"
+                    )
 
                     args, stop_now = self._is_modify_order(candles_now)
                     # modify order
@@ -219,14 +224,13 @@ class Breakout:
                         self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
                         # update candle count if order is placed
                         self.candle_count = len(candles_now)
-            timer(1)
 
         except Exception as e:
             fn = self.dct.pop("fn")
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = self.last_message
+            self.dct["fn"] = None
 
     def run(self, lst_of_orders, dct_of_ltp):
         try:
@@ -237,12 +241,20 @@ class Breakout:
             self.dct["last_price"] = dct_of_ltp.get(
                 self.dct["token"], self.dct["last_price"]
             )
-            timer(1)
             if self.dct["fn"] is not None:
-                print(
-                    f"{self.dct['tsym']} run {self.dct['fn']} {self.dct['last_price']}"
+                message = dict(
+                    symbol=self.dct["tsym"],
+                    low=self.dct["l"],
+                    high=self.dct["h"],
+                    last_price=self.dct["last_price"],
+                    prev_candle=self.candle_count,
+                    stop_loss=self.dct["stop_price"],
+                    next_fn=self.dct["fn"],
                 )
+                pprint(message)
+
                 self.dct["fn"]()
+            timer(1)
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while run"
             logging.error(self.message)

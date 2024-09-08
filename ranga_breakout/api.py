@@ -49,6 +49,7 @@ if __name__ == "__main__":
     import pandas as pd
     from toolkit.kokoo import dt_to_str
     from history import get_historical_data
+    from main import get_ltp, get_params
 
     Helper.api
 
@@ -73,6 +74,12 @@ if __name__ == "__main__":
     print(df)
     # find sum of of pnl column in df
     df.to_csv(S_DATA + "positions.csv")
-    lst = df["pnl"].astype(float).tolist()
-    pnl = sum(lst)
-    print(f"{pnl=}")
+    if not df.empty:
+        lst = df["pnl"].astype(float).tolist()
+        pnl = sum(lst)
+        print(f"{pnl=}")
+
+    params = get_params()
+    print(params)
+    resp = get_ltp(params)
+    print(resp)

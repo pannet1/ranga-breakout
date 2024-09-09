@@ -124,9 +124,9 @@ class Breakout:
 
             if self.dct["entry"] is None:
                 print(f"no buy/sell complete for {self.dct['tsym']}")
-                self.dct["fn"] = self.trail_stoploss
             else:
                 self.message = f"order complete for {self.dct['tsym']}"
+                self.dct["fn"] = self.trail_stoploss
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
             logging.error(self.message)
@@ -202,7 +202,6 @@ class Breakout:
                     print(
                         f"curr candle:{len(candles_now)} > prev candle:{self.candle_count}"
                     )
-
                     args, stop_now = self._is_modify_order(candles_now)
                     # modify order
                     """

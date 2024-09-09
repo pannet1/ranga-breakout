@@ -12,7 +12,6 @@ from exit_and_go import cancel_all_orders, close_all_positions
 
 def exch_token(params):
     try:
-        # create list of tokens
         lst = [v for v in params.values()]
         exch = lst[0]["exchange"]
         lst_of_tokens = [dct["token"] for dct in lst]
@@ -68,6 +67,7 @@ def main():
         while not is_time_past(O_SETG["stop"]):
             for obj in strategies[:]:
                 obj.run(Helper.orders, get_ltp(params))
+                print(obj.message)
                 if obj.dct["fn"] is None:
                     strategies.remove(obj)
         else:

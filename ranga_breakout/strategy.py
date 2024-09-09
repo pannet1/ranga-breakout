@@ -53,7 +53,7 @@ class Breakout:
         self.candle_count = 2
         self.dct.update(defaults)
         self.dct_of_orders = {}
-        self.message = None
+        self.message = "message not set"
         logging.info(self.dct)
 
     def make_order_params(self):
@@ -84,14 +84,14 @@ class Breakout:
 
             # Place buy order
             resp = Helper.api.order_place(**args["buy_args"])
-            logging.info(
+            self.message = (
                 f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
             )
             self.dct["buy_id"] = resp
 
             # Place sell order
             resp = Helper.api.order_place(**args["sell_args"])
-            logging.info(
+            self.message = (
                 f"{args['sell_args']['symbol']} {args['sell_args']['side']} got {resp=}"
             )
             self.dct["sell_id"] = resp
@@ -123,14 +123,13 @@ class Breakout:
                 self.dct["stop_price"] = self.dct["h"]
 
             if self.dct["entry"] is None:
-                logging.info(f"no buy/sell complete for {self.dct['tsym']}")
+                print(f"no buy/sell complete for {self.dct['tsym']}")
                 self.dct["fn"] = self.trail_stoploss
             else:
-                logging.debug(f"order not complete for {self.dct['tsym']}")
+                self.message = f"order complete for {self.dct['tsym']}"
         except Exception as e:
-            # fn = self.dct.pop("fn")
-            message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
-            logging.error(message)
+            self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
+            logging.error(self.message)
             print_exc()
 
     def get_history(self):
@@ -168,7 +167,7 @@ class Breakout:
                 self.dct["buy_args"].update(args)
                 args = self.dct["buy_args"]
             if is_flag:
-                print(
+                self.message = (
                     f'new stop {stop_now} is going to replace {self.dct["stop_price"]}'
                 )
                 return args, stop_now
@@ -187,9 +186,12 @@ class Breakout:
         try:
 
             # check if stop loss is already hit
-            if self._is_buy_or_sell(self.dct["entry"]):
+            operation = "sell" if self.dct["entry"] == "buy" else "buy"
+            if self._is_buy_or_sell(operation):
                 self.dct["fn"] = None
-                message = "trail complete"
+                self.message = (
+                    f"trail complete for {self.dct['tsym']} by {operation} stop order"
+                )
                 return
 
             if self.dct["can_trail"](self.dct):
@@ -252,7 +254,6 @@ class Breakout:
                     next_fn=self.dct["fn"],
                 )
                 pprint(message)
-
                 self.dct["fn"]()
             timer(1)
         except Exception as e:

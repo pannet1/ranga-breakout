@@ -229,6 +229,7 @@ class Breakout:
                         # update high and low except for the last
                         # self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
                         # update candle count if order is placed
+                        timer(1)
 
         except Exception as e:
             fn = self.dct.pop("fn")
@@ -258,7 +259,6 @@ class Breakout:
                 )
                 pprint(message)
                 self.dct["fn"]()
-            timer(1)
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while run"
             logging.error(self.message)

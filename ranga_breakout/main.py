@@ -67,7 +67,7 @@ def main():
         while not is_time_past(O_SETG["stop"]):
             for obj in strategies[:]:
                 obj.run(Helper.orders, get_ltp(params))
-                print(obj.message)
+                print("last message: ", obj.message)
                 if obj.dct["fn"] is None:
                     strategies.remove(obj)
         else:

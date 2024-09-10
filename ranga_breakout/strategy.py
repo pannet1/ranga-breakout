@@ -84,19 +84,20 @@ class Breakout:
 
             # Place buy order
             resp = Helper.api.order_place(**args["buy_args"])
-            self.message = (
+            logging.debug(
                 f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
             )
             self.dct["buy_id"] = resp
 
             # Place sell order
             resp = Helper.api.order_place(**args["sell_args"])
-            self.message = (
+            logging.debug(
                 f"{args['sell_args']['symbol']} {args['sell_args']['side']} got {resp=}"
             )
             self.dct["sell_id"] = resp
 
             self.dct["fn"] = self.is_buy_or_sell
+            self.message = "buy and sell orders placed"
         except Exception as e:
             fn = self.dct.pop("fn")
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
@@ -123,9 +124,9 @@ class Breakout:
                 self.dct["stop_price"] = self.dct["h"]
 
             if self.dct["entry"] is None:
-                print(f"no buy/sell complete for {self.dct['tsym']}")
+                self.message = f"no entry order is completed for {self.dct['tsym']}"
             else:
-                self.message = f"order complete for {self.dct['tsym']}"
+                self.message = f"dct['entry'] order completed for {self.dct['tsym']}"
                 self.dct["fn"] = self.trail_stoploss
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
@@ -157,8 +158,8 @@ class Breakout:
                     self.dct["sell_args"].update(args)
                     args = self.dct["sell_args"]
                     self.dct["h"] = highest
-                    self.dct["stop_price"] = stop_now
                     self.message = f'buy stop {stop_now} is going to replace {self.dct["stop_price"]}'
+                    self.dct["stop_price"] = stop_now
                     return args
 
             elif self.dct["entry"] == "sell":
@@ -173,8 +174,8 @@ class Breakout:
                     self.dct["buy_args"].update(args)
                     args = self.dct["buy_args"]
                     self.dct["l"] = lowest
-                    self.dct["stop_price"] = stop_now
                     self.message = f'sell stop {stop_now} is going to replace {self.dct["stop_price"]}'
+                    self.dct["stop_price"] = stop_now
                     return args
             return {}
         except Exception as e:

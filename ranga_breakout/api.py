@@ -48,8 +48,6 @@ if __name__ == "__main__":
     from __init__ import CNFG, S_DATA
     import pandas as pd
     from toolkit.kokoo import dt_to_str
-    from history import get_historical_data
-    from main import get_ltp, get_params
 
     Helper.api
 
@@ -78,8 +76,3 @@ if __name__ == "__main__":
         lst = df["pnl"].astype(float).tolist()
         pnl = sum(lst)
         print(f"{pnl=}")
-
-    params = get_params()
-    print(params)
-    resp = get_ltp(params)
-    print(resp)

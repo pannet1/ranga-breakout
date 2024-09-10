@@ -6,7 +6,7 @@ from toolkit.kokoo import timer, dt_to_str
 from __init__ import logging
 from api import Helper
 
-from history import get_historical_data, get_low_high
+from history import find_buy_stop, get_historical_data, find_sell_stop
 
 from pprint import pprint
 
@@ -144,35 +144,39 @@ class Breakout:
 
     def _is_modify_order(self, candles_now):
         try:
-            is_flag = False
             # buy trade
             if self.dct["entry"] == "buy":
-                stop_now = min(candles_now[-3][3], candles_now[-2][3])
-                is_flag = stop_now > self.dct["stop_price"]
-                args = dict(
-                    orderid=self.dct["sell_id"],
-                    price=stop_now - 0.10,
-                    triggerprice=stop_now - 0.05,
-                )
-                self.dct["sell_args"].update(args)
-                args = self.dct["sell_args"]
-            else:
-                stop_now = max(candles_now[-3][2], candles_now[-2][2])
-                is_flag = stop_now < self.dct["stop_price"]
-                args = dict(
-                    orderid=self.dct["buy_id"],
-                    price=stop_now + 0.10,
-                    triggerprice=stop_now + 0.05,
-                )
-                self.dct["buy_args"].update(args)
-                args = self.dct["buy_args"]
-            if is_flag:
-                self.message = (
-                    f'new stop {stop_now} is going to replace {self.dct["stop_price"]}'
-                )
-                return args, stop_now
-            else:
-                return {}, None
+                # stop_now = min(candles_now[-3][3], candles_now[-2][3])
+                stop_now, highest = find_buy_stop(candles_now)
+                if stop_now and stop_now > self.dct["stop_price"]:
+                    args = dict(
+                        orderid=self.dct["sell_id"],
+                        price=stop_now - 0.10,
+                        triggerprice=stop_now - 0.05,
+                    )
+                    self.dct["sell_args"].update(args)
+                    args = self.dct["sell_args"]
+                    self.dct["h"] = highest
+                    self.dct["stop_price"] = stop_now
+                    self.message = f'buy stop {stop_now} is going to replace {self.dct["stop_price"]}'
+                    return args
+
+            elif self.dct["entry"] == "sell":
+                # stop_now = max(candles_now[-3][2], candles_now[-2][2])
+                stop_now, lowest = find_sell_stop(candles_now)
+                if stop_now and stop_now < self.dct["stop_price"]:
+                    args = dict(
+                        orderid=self.dct["buy_id"],
+                        price=stop_now + 0.10,
+                        triggerprice=stop_now + 0.05,
+                    )
+                    self.dct["buy_args"].update(args)
+                    args = self.dct["buy_args"]
+                    self.dct["l"] = lowest
+                    self.dct["stop_price"] = stop_now
+                    self.message = f'sell stop {stop_now} is going to replace {self.dct["stop_price"]}'
+                    return args
+            return {}
         except Exception as e:
             fn = self.dct.pop("fn")
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
@@ -202,7 +206,7 @@ class Breakout:
                     print(
                         f"curr candle:{len(candles_now)} > prev candle:{self.candle_count}"
                     )
-                    args, stop_now = self._is_modify_order(candles_now)
+                    args = self._is_modify_order(candles_now)
                     # modify order
                     """
                     "variety":"NORMAL",
@@ -216,15 +220,15 @@ class Breakout:
                     "symboltoken":"3045",
                     "exchange":"NSE"
                     """
-                    if any(args) and stop_now:
+                    if any(args):
                         logging.debug(f"order modify {args}")
                         resp = Helper.api.order_modify(**args)
                         logging.debug(f"order modify {resp}")
-                        self.dct["stop_price"] = stop_now
-                        # update high and low except for the last
-                        self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
-                        # update candle count if order is placed
                         self.candle_count = len(candles_now)
+                        # self.dct["stop_price"] = stop_now
+                        # update high and low except for the last
+                        # self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
+                        # update candle count if order is placed
 
         except Exception as e:
             fn = self.dct.pop("fn")

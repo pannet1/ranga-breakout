@@ -58,6 +58,7 @@ def get_params():
 
 def main():
     try:
+        CANDLE_OTHER = 2
         Helper.api
         params: dict = get_params()
         # create strategy object
@@ -66,7 +67,8 @@ def main():
 
         while not is_time_past(O_SETG["stop"]):
             for obj in strategies[:]:
-                obj.run(Helper.orders, get_ltp(params))
+                obj.run(Helper.orders, get_ltp(params), CANDLE_OTHER)
+                CANDLE_OTHER = obj.candle_other
                 print("last message: ", obj.message)
                 if obj.dct["fn"] is None:
                     strategies.remove(obj)

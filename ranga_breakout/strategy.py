@@ -199,7 +199,9 @@ class Breakout:
                 )
                 return
 
-            if self.dct["can_trail"](self.dct):
+            if self.dct["can_trail"](self.dct) or (
+                self.candle_other > self.candle_count
+            ):
                 print(f'{self.dct["last_price"]} is a breakout for {self.dct["tsym"]}')
                 candles_now = self.get_history()
                 if len(candles_now) > self.candle_count:
@@ -226,11 +228,7 @@ class Breakout:
                         resp = Helper.api.order_modify(**args)
                         logging.debug(f"order modify {resp}")
                         self.candle_count = len(candles_now)
-                        # self.dct["stop_price"] = stop_now
-                        # update high and low except for the last
-                        # self.dct["l"], self.dct["h"] = get_low_high(candles_now[:-1])
-                        # update candle count if order is placed
-                        timer(1)
+                        timer(0.5)
 
         except Exception as e:
             fn = self.dct.pop("fn")
@@ -239,7 +237,7 @@ class Breakout:
             print_exc()
             self.dct["fn"] = None
 
-    def run(self, lst_of_orders, dct_of_ltp):
+    def run(self, lst_of_orders, dct_of_ltp, CANDLE_OTHER):
         try:
             if isinstance(lst_of_orders, list):
                 self.dct_of_orders = {
@@ -248,6 +246,7 @@ class Breakout:
             self.dct["last_price"] = dct_of_ltp.get(
                 self.dct["token"], self.dct["last_price"]
             )
+            self.candle_other = CANDLE_OTHER
             if self.dct["fn"] is not None:
                 message = dict(
                     symbol=self.dct["tsym"],

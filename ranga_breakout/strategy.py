@@ -189,7 +189,7 @@ class Breakout:
         if candles  count is changed and then check ltp
         """
         try:
-
+            FLAG = False
             # check if stop loss is already hit
             operation = "sell" if self.dct["entry"] == "buy" else "buy"
             if self._is_buy_or_sell(operation):
@@ -199,10 +199,16 @@ class Breakout:
                 )
                 return
 
-            if self.dct["can_trail"](self.dct) or (
-                self.candle_other > self.candle_count
-            ):
+            if self.dct["can_trail"](self.dct):
                 print(f'{self.dct["last_price"]} is a breakout for {self.dct["tsym"]}')
+                FLAG = True
+            elif self.candle_other > self.candle_count:
+                print(
+                    f"other candles {self.candle_other} > this symbol candle {self.candle_count}"
+                )
+                FLAG = True
+
+            if FLAG:
                 candles_now = self.get_history()
                 if len(candles_now) > self.candle_count:
                     pprint(candles_now)
@@ -246,7 +252,12 @@ class Breakout:
             self.dct["last_price"] = dct_of_ltp.get(
                 self.dct["token"], self.dct["last_price"]
             )
-            self.candle_other = CANDLE_OTHER
+            if CANDLE_OTHER > self.candle_other:
+                print(
+                    '{self.dct["tsym"]} candle is behind {self.candle_other}  others {CANDLE_OTHER}'
+                )
+                self.candle_other = CANDLE_OTHER
+
             if self.dct["fn"] is not None:
                 message = dict(
                     symbol=self.dct["tsym"],

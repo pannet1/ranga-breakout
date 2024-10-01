@@ -51,6 +51,7 @@ class Breakout:
             "stop_price": None,
         }
         self.candle_count = 2
+        self.candle_other = 2
         self.dct.update(defaults)
         self.dct_of_orders = {}
         self.message = "message not set"

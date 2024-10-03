@@ -127,7 +127,7 @@ class Breakout:
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"
             else:
-                self.message = f"dct['entry'] order completed for {self.dct['tsym']}"
+                self.message = f"{dct['entry']} order completed for {self.dct['tsym']}"
                 self.dct["fn"] = self.trail_stoploss
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"

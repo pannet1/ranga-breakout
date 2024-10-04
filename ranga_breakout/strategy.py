@@ -269,6 +269,7 @@ class Breakout:
                     high=self.dct["h"],
                     last_price=self.dct["last_price"],
                     prev_candle=self.candle_count,
+                    other_candle=self.candle_other,
                     stop_loss=self.dct["stop_price"],
                     next_fn=self.dct["fn"],
                 )

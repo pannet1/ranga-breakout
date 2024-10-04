@@ -237,7 +237,8 @@ class Breakout:
                         resp = Helper.api.order_modify(**args)
                         logging.debug(f"order modify {resp}")
                         self.candle_count = len(candles_now)
-                        timer(0.5)
+                        self.candle_other = len(candles_now)
+                        # timer(0.5)
 
         except Exception as e:
             fn = self.dct.pop("fn")

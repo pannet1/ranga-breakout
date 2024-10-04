@@ -127,7 +127,9 @@ class Breakout:
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"
             else:
-                self.message = f"{dct['entry']} order completed for {self.dct['tsym']}"
+                self.message = (
+                    f"{self.dct['entry']} order completed for {self.dct['tsym']}"
+                )
                 self.dct["fn"] = self.trail_stoploss
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
@@ -200,13 +202,13 @@ class Breakout:
                 )
                 return
 
-            if self.dct["can_trail"](self.dct):
-                print(f'{self.dct["last_price"]} is a breakout for {self.dct["tsym"]}')
-                FLAG = True
-            elif self.candle_other > self.candle_count:
+            if self.candle_other > self.candle_count:
                 print(
                     f"other candles {self.candle_other} > this symbol candle {self.candle_count}"
                 )
+                FLAG = True
+            elif self.dct["can_trail"](self.dct):
+                print(f'{self.dct["last_price"]} is a breakout for {self.dct["tsym"]}')
                 FLAG = True
 
             if FLAG:
@@ -255,7 +257,7 @@ class Breakout:
             )
             if CANDLE_OTHER > self.candle_other:
                 print(
-                    '{self.dct["tsym"]} candle is behind {self.candle_other}  others {CANDLE_OTHER}'
+                    f'{self.dct["tsym"]} other candle {self.candle_other}  > other symbol candle {CANDLE_OTHER}'
                 )
                 self.candle_other = CANDLE_OTHER
 

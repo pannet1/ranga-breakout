@@ -49,7 +49,7 @@ def get_params():
     df = stocks_in_play()
     while not is_time_past(O_SETG["start"]):
         print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
-        timer(1)
+        timer(0.5)
     else:
         print("HAPPY TRADING")
 

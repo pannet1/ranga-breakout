@@ -40,7 +40,6 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
         candles = {}
 
         for _, row in df.iterrows():
-            timer(0.5)
             historic_param = {
                 "exchange": row["exchange"],
                 "symboltoken": row["token"],

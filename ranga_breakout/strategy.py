@@ -56,6 +56,7 @@ class Breakout:
         self.dct_of_orders = {}
         self.message = "message not set"
         logging.info(self.dct)
+        self.make_order_params()
 
     def make_order_params(self):
         try:

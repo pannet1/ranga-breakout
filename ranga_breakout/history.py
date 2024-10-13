@@ -2,7 +2,7 @@ from decorator import retry
 from traceback import print_exc
 from typing import Any  # Importing only the required types
 from __init__ import logging
-from toolkit.kokoo import dt_to_str, timer
+from toolkit.kokoo import dt_to_str
 from api import Helper
 import numpy as np
 
@@ -45,7 +45,9 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
                 "symboltoken": row["token"],
                 "interval": "THIRTY_MINUTE",
                 "fromdate": dt_to_str("9:15"),
+                # "fromdate": "2024-10-11 9:15",
                 "todate": dt_to_str(""),
+                # "todate": "2024-10-11 15:15",
             }
             resp = get_historical_data(historic_param)
             if resp is not None and any(resp) and any(resp[0]):

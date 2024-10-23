@@ -5,6 +5,7 @@ from toolkit.kokoo import is_time_past, kill_tmux, timer
 from __init__ import O_SETG, logging
 from api import Helper
 from strategy import Breakout
+from reverse import Reverse
 from universe import stocks_in_play
 from history import get_candles
 from exit_and_go import cancel_all_orders, close_all_positions

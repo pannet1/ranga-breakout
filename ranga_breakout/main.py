@@ -65,6 +65,8 @@ def main():
         # create strategy object
         if O_SETG["mode"] == 0:
             strategies = [Breakout(param) for param in params.values()]
+        else:
+            strategies = [Reverse(param) for param in params.values()]
 
         while not is_time_past(O_SETG["stop"]):
             for obj in strategies[:]:

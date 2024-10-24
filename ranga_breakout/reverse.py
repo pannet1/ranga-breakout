@@ -6,7 +6,7 @@ from toolkit.kokoo import timer, dt_to_str
 from __init__ import logging
 from api import Helper
 
-from history import find_buy_stop, get_historical_data, find_sell_stop
+from history import find_buy_stop, get_historical_data, find_sell_stop, find_extremes
 
 from pprint import pprint
 
@@ -15,7 +15,7 @@ def create_order_args(ohlc, side, price, trigger_price):
     return dict(
         symbol=ohlc["tsym"],
         exchange=ohlc["exchange"],
-        order_type="STOPLOSS_MARKET",
+        order_type="STOPLOSS_LIMIT",
         product="INTRADAY",  # Options: CARRYFORWARD, INTRADAY
         quantity=ohlc["quantity"],
         symboltoken=ohlc["token"],
@@ -49,6 +49,7 @@ class Reverse:
             "entry": None,
             "stop_price": None,
             "can_trail": None,
+            "candle_two": None,
         }
         self.dct.update(defaults)
         self.candle_count = 2
@@ -162,6 +163,7 @@ class Reverse:
                 candles_now = self.get_history()
                 self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
                 self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
+                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
             elif self._is_buy_or_sell("sell"):
                 self.dct["entry"] = "sell"
                 stop_now = high + half + (high - low)
@@ -179,6 +181,7 @@ class Reverse:
                 candles_now = self.get_history()
                 self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
                 self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
+                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
 
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"
@@ -193,25 +196,38 @@ class Reverse:
             print_exc()
 
     def move_breakeven(self):
-        try: 
+        try:
             # check if stop loss is already hit
             operation = "sell" if self.dct["entry"] == "buy" else "buy"
             if self.is_order_complete(operation):
                 return
-            
-            if self.dct["can_trail"](self.dct):
-                print(f'{self.dct["last_price"]} is above/below two candles for {self.dct["tsym"]}')
-                self.dct["fn"] = self.trail_stoploss
 
+            if self.dct["can_trail"](self.dct):
+                # assign next funtion
+                self.dct["fn"] = self.trail_stoploss
+                # save for last action
+                self.message = f"moved to breakeven {self.dct['candle_two']} for {self.dct['tsym']}"
+                # assign condtion for next function
                 if self.dct["entry"] == "buy":
                     self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
                 else:
                     self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
+                return
+
+            # means opposite here
+            if operation == "buy":
+                print(
+                    f'{self.dct["last_price"]} is not < {self.dct["candle_two"]} for {self.dct["tsym"]}'
+                )
+            else:
+                print(
+                    f'{self.dct["last_price"]} is not > {self.dct["candle_two"]} for {self.dct["tsym"]}'
+                )
+
         except Exception as e:
             self.message = f'{self.dct["tsym"]} encountered {e} while move_breakeven'
             logging.error(self.message)
             print_exc()
-
 
     def _is_modify_order(self, candles_now):
         try:
@@ -254,7 +270,6 @@ class Reverse:
             logging.error(self.message)
             print_exc()
 
-
     def trail_stoploss(self):
         """
         if candles  count is changed and then check ltp
@@ -262,7 +277,7 @@ class Reverse:
         try:
             # check if stop loss is already hit
             operation = "sell" if self.dct["entry"] == "buy" else "buy"
-            if self.is_order_complete(operation)
+            if self.is_order_complete(operation):
                 return
 
             FLAG = False
@@ -336,6 +351,7 @@ class Reverse:
                     other_candle=self.candle_other,
                     stop_loss=self.dct["stop_price"],
                     next_fn=self.dct["fn"],
+                    candle_two=self.dct["candle_two"],
                 )
                 pprint(message)
                 self.dct["fn"]()

@@ -99,6 +99,20 @@ def find_sell_stop(candles_data):
     return stop, extreme
 
 
+def find_extremes(candles_data):
+    np_data = np.array(candles_data)
+
+    # Extract the 'high' column, which is at index 2
+    high_values = np_data[:, 2].astype(float)
+    low_values = np_data[:, 3].astype(float)
+
+    # Find the maximum of the 'high' column
+    max_high = np.max(high_values)
+    min_low = np.min(low_values)
+
+    return min_low, max_high
+
+
 # Test the find_buy_stop function
 if __name__ == "__main__":
     data = [

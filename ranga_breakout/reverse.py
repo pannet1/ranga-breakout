@@ -113,6 +113,7 @@ class Reverse:
             "fromdate": dt_to_str("9:15"),
             "todate": dt_to_str(""),
         }
+        print(params)
         return get_historical_data(params)
 
     def _is_buy_or_sell(self, operation):
@@ -129,7 +130,7 @@ class Reverse:
                 )
                 FLAG = True
         except Exception as e:
-            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            self.message = f"{self.dct['tsym']} encountered {e} while is_order_complete"
             logging.error(self.message)
             print_exc()
         finally:
@@ -161,11 +162,12 @@ class Reverse:
                 resp = Helper.api.order_modify(**args)
                 logging.debug(f"order modify {resp}")
                 candles_now = self.get_history()
-                self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
-                self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
-                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                if candles_now is not None and any(candles_now):
+                    self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
+                    self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
+                    self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                    self.dct["entry"] = "buy"
             elif self._is_buy_or_sell("sell"):
-                self.dct["entry"] = "sell"
                 stop_now = high + half + (high - low)
                 self.dct["stop_price"] = stop_now
                 args = dict(
@@ -179,9 +181,11 @@ class Reverse:
                 resp = Helper.api.order_modify(**args)
                 logging.debug(f"order modify {resp}")
                 candles_now = self.get_history()
-                self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
-                self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
-                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                if candles_now is not None and any(candles_now):
+                    self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
+                    self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
+                    self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                    self.dct["entry"] = "sell"
 
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"
@@ -266,9 +270,10 @@ class Reverse:
             return {}
         except Exception as e:
             fn = self.dct.pop("fn")
-            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            self.message = f"{self.dct['tsym']} encountered {e} {fn}"
             logging.error(self.message)
             print_exc()
+            self.dct["fn"] = None
 
     def trail_stoploss(self):
         """

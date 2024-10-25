@@ -1,5 +1,6 @@
 import pytest
-from history import find_buy_stop
+from history import find_buy_stop, get_historical_data
+from toolkit.kokoo import dt_to_str
 
 
 def test_find_buy_stop():
@@ -30,3 +31,17 @@ def test_find_buy_stop_edge_case():
     # Assert the results for the edge case
     assert stop == 1, f"Expected stop to be 1, got {stop}"
     assert extreme == 2, f"Expected extreme to be 2, got {extreme}"
+
+
+def get_history():
+    params = {
+        "exchange": "NSE",
+        "symboltoken": "10794",
+        "interval": "FIFTEEN_MINUTE",
+        "fromdate": dt_to_str("9:15"),
+        "todate": dt_to_str(""),
+    }
+    return get_historical_data(params)
+
+
+print(get_history())

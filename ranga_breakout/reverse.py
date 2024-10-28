@@ -146,7 +146,6 @@ class Reverse:
             half = (high - low) / 2
             if self._is_buy_or_sell("buy"):
                 stop_now = low - half - (high - low)
-                self.dct["stop_price"] = stop_now
                 args = dict(
                     orderid=self.dct["sell_id"],
                     price=stop_now,
@@ -169,7 +168,6 @@ class Reverse:
                     self.dct["entry"] = "buy"
             elif self._is_buy_or_sell("sell"):
                 stop_now = high + half + (high - low)
-                self.dct["stop_price"] = stop_now
                 args = dict(
                     orderid=self.dct["buy_id"],
                     price=stop_now,
@@ -177,6 +175,7 @@ class Reverse:
                 )
                 self.dct["buy_args"].update(args)
                 args = self.dct["buy_args"]
+                self.dct["stop_price"] = stop_now
                 logging.debug(f"order modify {args}")
                 resp = Helper.api.order_modify(**args)
                 logging.debug(f"order modify {resp}")
@@ -209,13 +208,37 @@ class Reverse:
             if self.dct["can_trail"](self.dct):
                 # assign next funtion
                 self.dct["fn"] = self.trail_stoploss
-                # save for last action
-                self.message = f"moved to breakeven {self.dct['candle_two']} for {self.dct['tsym']}"
                 # assign condtion for next function
                 if self.dct["entry"] == "buy":
                     self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
+                    # copied from above
+                    stop_now = self.dct["l"]
+                    args = dict(
+                        orderid=self.dct["sell_id"],
+                        price=stop_now,
+                        triggerprice=stop_now,
+                    )
+                    self.dct["sell_args"].update(args)
+                    args = self.dct["sell_args"]
+                    self.message = f'buy stop {stop_now} is going to replace {self.dct["stop_price"]}'
+                    self.dct["stop_price"] = stop_now
+                    logging.debug(f"order modify {args}")
+                    resp = Helper.api.order_modify(**args)
+                    logging.debug(f"order modify {resp}")
                 else:
                     self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
+                    stop_now = self.dct["h"]
+                    args = dict(
+                        orderid=self.dct["buy_id"],
+                        price=stop_now,
+                        triggerprice=stop_now,
+                    )
+                    self.dct["buy_args"].update(args)
+                    args = self.dct["buy_args"]
+                    self.dct["stop_price"] = stop_now
+                    logging.debug(f"order modify {args}")
+                    resp = Helper.api.order_modify(**args)
+                    logging.debug(f"order modify {resp}")
                 return
 
             # means opposite here

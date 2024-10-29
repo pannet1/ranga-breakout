@@ -25,7 +25,7 @@ def close_all_positions():
         for params in resp:
             print(params)
             quantity = int(params["netqty"])
-            if quantity != 0:
+            if quantity != 0 and params["producttype"] == "INTRADAY":
                 order_params = {
                     "variety": "NORMAL",
                     "tradingsymbol": params["tradingsymbol"],

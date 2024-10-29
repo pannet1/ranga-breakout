@@ -11,6 +11,13 @@ from history import find_buy_stop, get_historical_data, find_sell_stop, find_ext
 from pprint import pprint
 
 
+def float_2_curr(value: float):
+    try:
+        return round(value / 0.05) * 0.05
+    except Exception as e:
+        print(e)
+
+
 def create_order_args(ohlc, side, price, trigger_price):
     return dict(
         symbol=ohlc["tsym"],
@@ -65,10 +72,16 @@ class Reverse:
             low = float(self.dct["l"])
             half = (high - low) / 2
             self.dct["buy_args"] = create_order_args(
-                ohlc=self.dct, side="BUY", price=low - half, trigger_price=low - half
+                ohlc=self.dct,
+                side="BUY",
+                price=float_2_curr(low - half),
+                trigger_price=float_2_curr(low - half),
             )
             self.dct["sell_args"] = create_order_args(
-                ohlc=self.dct, side="SELL", price=high + half, trigger_price=high + half
+                ohlc=self.dct,
+                side="SELL",
+                price=float_2_curr(high + half),
+                trigger_price=float_2_curr(high + half),
             )
             self.dct["fn"] = self.place_both_orders
         except Exception as e:
@@ -97,7 +110,7 @@ class Reverse:
             self.dct["sell_id"] = resp
 
             self.dct["fn"] = self.move_initial_stop
-            self.message = "buy and sell orders placed"
+            self.message = "buy and sell orders placed for {self.dct['tsym']}"
         except Exception as e:
             fn = self.dct.pop("fn")
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
@@ -113,7 +126,6 @@ class Reverse:
             "fromdate": dt_to_str("9:15"),
             "todate": dt_to_str(""),
         }
-        print(params)
         return get_historical_data(params)
 
     def _is_buy_or_sell(self, operation):
@@ -143,9 +155,9 @@ class Reverse:
         try:
             high = float(self.dct["h"])
             low = float(self.dct["l"])
-            half = (high - low) / 2
+            half = float_2_curr((high - low) / 2)
             if self._is_buy_or_sell("buy"):
-                stop_now = low - half - (high - low)
+                stop_now = float_2_curr(low - half - (high - low))
                 args = dict(
                     orderid=self.dct["sell_id"],
                     price=stop_now,

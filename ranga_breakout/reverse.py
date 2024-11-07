@@ -60,7 +60,7 @@ class Reverse:
         }
         self.dct.update(defaults)
         self.candle_count = 2
-        self.candle_other = 2
+        self.candle_start = 2
         self.dct_of_orders = {}
         self.message = "message not set"
         logging.info(self.dct)
@@ -187,7 +187,7 @@ class Reverse:
                 if candles_now is not None and any(candles_now):
                     self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
                     self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
-                    self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                    # self.dct["l"], self.dct["h"] = find_extremes(candles_now)
             elif self._is_buy_or_sell("sell"):
                 self.dct["entry"] = "sell"
                 stop_now = float_2_curr(high + half + (high - low))
@@ -207,7 +207,7 @@ class Reverse:
                 if candles_now is not None and any(candles_now):
                     self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
                     self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
-                    self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                    # self.dct["l"], self.dct["h"] = find_extremes(candles_now)
 
             if self.dct["entry"] is not None:
                 self.message = f'{self.dct["entry"]} NEW stop {stop_now} '
@@ -243,11 +243,23 @@ class Reverse:
         try:
             # Determine trailing conditions based on entry type
             if self.dct["entry"] == "buy":
+                candles_now = self.get_history()
+                stop_now, order_id, args_dict = (
+                    min(candles_now[-3][3], candles_now[-2][3]),
+                    "sell_id",
+                    "sell_args",
+                )
                 self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
-                stop_now, order_id, args_dict = self.dct["l"], "sell_id", "sell_args"
+                self.candle_start = candles_now.shape[0] - 3
             else:
+                candles_now = self.get_history()
+                stop_now, order_id, args_dict = (
+                    max(candles_now[-3][2], candles_now[-2][2]),
+                    "buy_id",
+                    "buy_args",
+                )
                 self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
-                stop_now, order_id, args_dict = self.dct["h"], "buy_id", "buy_args"
+                self.candle_start = candles_now.shape[0] - 3
 
             # Update arguments and log the change
             self._update_order_args(order_id, args_dict, stop_now)
@@ -270,7 +282,7 @@ class Reverse:
                 self._set_trailing_stoploss()
                 return
 
-            # means opposite here
+            # operation opposite here
             condition = "<" if operation == "buy" else ">"
             logging.info(
                 f'{self.dct["last_price"]} is not {condition} {self.dct["candle_two"]} for {self.dct["tsym"]}'
@@ -336,12 +348,7 @@ class Reverse:
 
     def _should_modify_order(self):
         """Determine if conditions meet for modifying the trailing stop loss."""
-        if self.candle_other > self.candle_count:
-            print(
-                f"Other candles ({self.candle_other}) exceed current symbol candle ({self.candle_count})"
-            )
-            return True
-        elif self.dct["can_trail"](self.dct):
+        if self.dct["can_trail"](self.dct):
             print(f"{self.dct['last_price']} is a breakout for {self.dct['tsym']}")
             return True
         return False
@@ -354,7 +361,6 @@ class Reverse:
             resp = Helper.api.order_modify(**args)
             logging.debug(f"Order modification response: {resp}")
             self.candle_count = len(candles_now)
-            self.candle_other = len(candles_now)
 
     def trail_stoploss(self):
         """
@@ -367,7 +373,7 @@ class Reverse:
                 return
 
             if self._should_modify_order():
-                candles_now = self.get_history()
+                candles_now = self.get_history()[self.candle_start :]
                 if len(candles_now) > self.candle_count:
                     pprint(candles_now)
                     print(
@@ -389,11 +395,6 @@ class Reverse:
             self.dct["last_price"] = dct_of_ltp.get(
                 self.dct["token"], self.dct["last_price"]
             )
-            if CANDLE_OTHER > self.candle_other:
-                print(
-                    f'{self.dct["tsym"]} other candle {self.candle_other}  > other symbol candle {CANDLE_OTHER}'
-                )
-                self.candle_other = CANDLE_OTHER
 
             if self.dct["fn"] is not None:
                 message = dict(
@@ -402,7 +403,6 @@ class Reverse:
                     high=self.dct["h"],
                     last_price=self.dct["last_price"],
                     prev_candle=self.candle_count,
-                    other_candle=self.candle_other,
                     stop_loss=self.dct["stop_price"],
                     next_fn=self.dct["fn"],
                     candle_two=self.dct["candle_two"],

@@ -1,6 +1,6 @@
 from traceback import print_exc
 from typing import Any  # Importing only the required types
-
+import numpy as np
 from toolkit.kokoo import dt_to_str
 
 from __init__ import logging
@@ -233,28 +233,33 @@ class Reverse:
         try:
             if candles_now is None:
                 candles_now = self._get_history()
-            self.candle_start = candles_now.shape[0] - 3
-            self.dct["l"], self.dct["h"] = find_extremes(candles_now)
-            # Determine trailing conditions based on entry type
 
-            if self.dct["entry"] == "buy":
-                stop_now, order_id, args_dict = (
-                    min(candles_now[-3][3], candles_now[-2][3]),
-                    "sell_id",
-                    "sell_args",
-                )
-                self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
-            else:
-                stop_now, order_id, args_dict = (
-                    max(candles_now[-3][2], candles_now[-2][2]),
-                    "buy_id",
-                    "buy_args",
-                )
-                self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
+            if candles_now and any(candles_now):
+                arr_candles = np.array(candles_now)
+                if arr_candles.shape[0] >= 3:
+                    self.candle_start = arr_candles.shape[0] - 3
 
-            # Update arguments and log the change
-            self._modify_order(order_id, args_dict, stop_now)
-            self.message = f'{self.dct["entry"]} BREAKEVEN {stop_now} will replace {self.dct["stop_price"]}'
+                    self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                    # Determine trailing conditions based on entry type
+
+                    if self.dct["entry"] == "buy":
+                        stop_now, order_id, args_dict = (
+                            min(candles_now[-3][3], candles_now[-2][3]),
+                            "sell_id",
+                            "sell_args",
+                        )
+                        self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
+                    else:
+                        stop_now, order_id, args_dict = (
+                            max(candles_now[-3][2], candles_now[-2][2]),
+                            "buy_id",
+                            "buy_args",
+                        )
+                        self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
+
+                    # Update arguments and log the change
+                    self._modify_order(order_id, args_dict, stop_now)
+                    self.message = f'{self.dct["entry"]} BREAKEVEN {stop_now} will replace {self.dct["stop_price"]}'
         except Exception as e:
             logging.error(f"Error while setting trailing stop: {e}")
 
@@ -306,6 +311,7 @@ class Reverse:
         """Helper to update the buy stop loss."""
         stop_now, highest = find_buy_stop(candles_now)
         if stop_now and stop_now > self.dct["stop_price"]:
+            self.message = f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
             stop_now = float_2_curr(stop_now)
             args = {
                 "orderid": self.dct["sell_id"],
@@ -315,7 +321,7 @@ class Reverse:
             self.dct["sell_args"].update(args)
             self.dct["h"] = highest
             self.dct["stop_price"] = stop_now
-            self.message = f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
+            args = self.dct["sell_args"]
             return args
         return {}
 
@@ -323,6 +329,7 @@ class Reverse:
         """Helper to update the sell stop loss."""
         stop_now, lowest = find_sell_stop(candles_now)
         if stop_now and stop_now < self.dct["stop_price"]:
+            self.message = f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
             stop_now = float_2_curr(stop_now)
             args = {
                 "orderid": self.dct["buy_id"],
@@ -332,7 +339,7 @@ class Reverse:
             self.dct["buy_args"].update(args)
             self.dct["l"] = lowest
             self.dct["stop_price"] = stop_now
-            self.message = f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
+            args = self.dct["buy_args"]
             return args
         return {}
 

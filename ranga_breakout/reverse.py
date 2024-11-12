@@ -203,32 +203,33 @@ class Reverse:
             low = float(self.dct["l"])
             half = float_2_curr((high - low) / 2)
 
-            # Determine if this is a "buy" or "sell" action
-            entry_type, opp_entry_type = (
-                ("buy", "sell") if self._is_buy_or_sell("buy") else ("sell", "buy")
-            )
-            self.dct["entry"] = entry_type
+            # Determine if this is a "buy" or "sell" entry is complete
+            #
+            for entry_type in ["buy", "sell"]:
+                if self._is_buy_or_sell(entry_type):
+                    self.dct["entry"] = entry_type
+                    opp_entry_type = if entry_type == "buy" else "sell"
 
-            # Set stop price and args based on entry type
-            stop_now = (
-                float_2_curr(low - half - (high - low))
-                if entry_type == "buy"
-                else float_2_curr(high + half + (high - low))
-            )
-            order_id = f"{opp_entry_type}_id"
-            args_dict = f"{opp_entry_type}_args"
-            self.message = f'{entry_type} NEW stop {stop_now} is going to replace INITIAL stop {self.dct["stop_price"]}'
-            self._modify_order(order_id, args_dict, stop_now)
-            self.dct["fn"] = self.move_breakeven
+                    # Set stop price and args based on entry type
+                    stop_now = (
+                        float_2_curr(low - half - (high - low))
+                        if entry_type == "buy"
+                        else float_2_curr(high + half + (high - low))
+                    )
+                    order_id = f"{opp_entry_type}_id"
+                    args_dict = f"{opp_entry_type}_args"
+                    self.message = f'{entry_type} NEW stop {stop_now} is going to replace INITIAL stop {self.dct["stop_price"]}'
+                    self._modify_order(order_id, args_dict, stop_now)
+                    self.dct["fn"] = self.move_breakeven
 
-            # Get candles and set trailing condition
-            candles_now = self._get_history()
-            if entry_type == "buy":
-                self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
-                self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
-            else:
-                self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
-                self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
+                    # Get candles and set trailing condition
+                    candles_now = self._get_history()
+                    if entry_type == "buy":
+                        self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
+                        self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
+                    else:
+                        self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
+                        self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
 
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
@@ -242,6 +243,8 @@ class Reverse:
     def _set_trailing_stoploss(self, candles_now):
         """Helper function to set trailing stop loss."""
         try:
+            if not any(candles_now):
+                candles_now = self._get_history()
             arr_candles = np.array(candles_now)
             if arr_candles.shape[0] >= 3:
                 self.candle_start = arr_candles.shape[0] - 3
@@ -290,12 +293,12 @@ class Reverse:
                     if temp > self.dct["candle_two"]:
                         self.dct["candle_two"] = temp
 
-                if self.dct["can_trail"](self.dct):
-                    # assign next function
-                    self.dct["fn"] = self.trail_stoploss
-                    # assign condtion for next function
-                    self._set_trailing_stoploss(candles_now)
-                    return
+            if self.dct["can_trail"](self.dct):
+                # assign condtion for next function
+                self._set_trailing_stoploss(candles_now)
+                # assign next function
+                self.dct["fn"] = self.trail_stoploss
+                return
 
             # operation opposite here
             condition = "<" if operation == "buy" else ">"

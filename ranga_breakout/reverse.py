@@ -72,15 +72,25 @@ class Reverse:
         common methods
     """
 
-    def _get_history(self):
-        params = {
-            "exchange": self.dct["exchange"],
-            "symboltoken": self.dct["token"],
-            "interval": "FIFTEEN_MINUTE",
-            "fromdate": dt_to_str("9:15"),
-            "todate": dt_to_str(""),
-        }
-        return get_historical_data(params)
+    def _get_history(self, should_check=True):
+        try:
+            candles_now = []
+            if should_check:
+                self.next_check = pdlm.now().add(minutes=5)
+                params = {
+                    "exchange": self.dct["exchange"],
+                    "symboltoken": self.dct["token"],
+                    "interval": "FIFTEEN_MINUTE",
+                    "fromdate": dt_to_str("9:15"),
+                    "todate": dt_to_str(""),
+                }
+                candles_now = get_historical_data(params)
+        except Exception as e:
+            self.message = f"{self.dct['tsym']} encountered {e} while get history"
+            logging.error(self.message)
+            print_exc()
+        finally:
+            return candles_now
 
     def _is_buy_or_sell(self, operation):
         buy_or_sell = self.dct[f"{operation}_id"]
@@ -121,6 +131,7 @@ class Reverse:
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while _modify_order"
             logging.error(self.message)
+            print_exc()
 
     """
        1. make order params 
@@ -231,35 +242,31 @@ class Reverse:
     def _set_trailing_stoploss(self, candles_now):
         """Helper function to set trailing stop loss."""
         try:
-            if candles_now is None:
-                candles_now = self._get_history()
+            arr_candles = np.array(candles_now)
+            if arr_candles.shape[0] >= 3:
+                self.candle_start = arr_candles.shape[0] - 3
 
-            if candles_now and any(candles_now):
-                arr_candles = np.array(candles_now)
-                if arr_candles.shape[0] >= 3:
-                    self.candle_start = arr_candles.shape[0] - 3
+                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                # Determine trailing conditions based on entry type
 
-                    self.dct["l"], self.dct["h"] = find_extremes(candles_now)
-                    # Determine trailing conditions based on entry type
+                if self.dct["entry"] == "buy":
+                    stop_now, order_id, args_dict = (
+                        min(candles_now[-3][3], candles_now[-2][3]),
+                        "sell_id",
+                        "sell_args",
+                    )
+                    self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
+                else:
+                    stop_now, order_id, args_dict = (
+                        max(candles_now[-3][2], candles_now[-2][2]),
+                        "buy_id",
+                        "buy_args",
+                    )
+                    self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
 
-                    if self.dct["entry"] == "buy":
-                        stop_now, order_id, args_dict = (
-                            min(candles_now[-3][3], candles_now[-2][3]),
-                            "sell_id",
-                            "sell_args",
-                        )
-                        self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
-                    else:
-                        stop_now, order_id, args_dict = (
-                            max(candles_now[-3][2], candles_now[-2][2]),
-                            "buy_id",
-                            "buy_args",
-                        )
-                        self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
-
-                    # Update arguments and log the change
-                    self._modify_order(order_id, args_dict, stop_now)
-                    self.message = f'{self.dct["entry"]} BREAKEVEN {stop_now} will replace {self.dct["stop_price"]}'
+                # Update arguments and log the change
+                self.message = f'{self.dct["entry"]} BREAKEVEN {stop_now} will replace {self.dct["stop_price"]}'
+                self._modify_order(order_id, args_dict, stop_now)
         except Exception as e:
             logging.error(f"Error while setting trailing stop: {e}")
 
@@ -272,11 +279,8 @@ class Reverse:
             if self._is_order_complete(operation):
                 return
 
-            candles_now = None
-            if pdlm.now() > self.next_check:
-                self.next_check = pdlm.now().add(minutes=5)
-                candles_now = self._get_history()
-
+            candles_now = self._get_history(pdlm.now() > self.next_check)
+            if any(candles_now):
                 if operation == "sell":  # stop order is sell
                     temp = max(candles_now[-3][2], candles_now[-2][2])
                     if temp < self.dct["candle_two"]:
@@ -286,12 +290,12 @@ class Reverse:
                     if temp > self.dct["candle_two"]:
                         self.dct["candle_two"] = temp
 
-            if self.dct["can_trail"](self.dct):
-                # assign next function
-                self.dct["fn"] = self.trail_stoploss
-                # assign condtion for next function
-                self._set_trailing_stoploss(candles_now)
-                return
+                if self.dct["can_trail"](self.dct):
+                    # assign next function
+                    self.dct["fn"] = self.trail_stoploss
+                    # assign condtion for next function
+                    self._set_trailing_stoploss(candles_now)
+                    return
 
             # operation opposite here
             condition = "<" if operation == "buy" else ">"
@@ -369,10 +373,9 @@ class Reverse:
             if self._is_order_complete(operation):
                 return
 
-            candles_now = None
-            if pdlm.now() > self.next_check:
-                self.next_check = pdlm.now().add(minutes=5)
-                candles_now = self._get_history()[self.candle_start :]
+            candles_now = self._get_history(pdlm.now() > self.next_check)
+            if any(candles_now):
+                candles_now = candles_now[self.candle_start :]
                 pprint(candles_now)
                 self.dct["l"], self.dct["h"] = find_extremes(candles_now)
 

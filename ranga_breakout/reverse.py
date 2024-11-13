@@ -208,7 +208,7 @@ class Reverse:
             for entry_type in ["buy", "sell"]:
                 if self._is_buy_or_sell(entry_type):
                     self.dct["entry"] = entry_type
-                    opp_entry_type = if entry_type == "buy" else "sell"
+                    opp_entry_type = "sell" if entry_type == "buy" else "sell"
 
                     # Set stop price and args based on entry type
                     stop_now = (
@@ -225,11 +225,19 @@ class Reverse:
                     # Get candles and set trailing condition
                     candles_now = self._get_history()
                     if entry_type == "buy":
-                        self.dct["candle_two"] = max(candles_now[-3][2], candles_now[-2][2])
-                        self.dct["can_trail"] = lambda c: c["last_price"] > c["candle_two"]
+                        self.dct["candle_two"] = max(
+                            candles_now[-3][2], candles_now[-2][2]
+                        )
+                        self.dct["can_trail"] = (
+                            lambda c: c["last_price"] > c["candle_two"]
+                        )
                     else:
-                        self.dct["candle_two"] = min(candles_now[-3][3], candles_now[-2][3])
-                        self.dct["can_trail"] = lambda c: c["last_price"] < c["candle_two"]
+                        self.dct["candle_two"] = min(
+                            candles_now[-3][3], candles_now[-2][3]
+                        )
+                        self.dct["can_trail"] = (
+                            lambda c: c["last_price"] < c["candle_two"]
+                        )
 
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"

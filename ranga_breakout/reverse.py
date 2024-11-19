@@ -93,8 +93,13 @@ class Reverse:
             return candles_now
 
     def _is_buy_or_sell(self, operation):
-        buy_or_sell = self.dct[f"{operation}_id"]
-        return self.dct_of_orders[buy_or_sell]["status"] == "complete"
+        try:
+            buy_or_sell = self.dct[f"{operation}_id"]
+            return self.dct_of_orders[buy_or_sell]["status"] == "complete"
+        except Exception as e:
+            self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
+            logging.error(self.message)
+            print_exc()
 
     def _is_order_complete(self, operation):
         try:
@@ -204,9 +209,9 @@ class Reverse:
             half = float_2_curr((high - low) / 2)
 
             # Determine if this is a "buy" or "sell" entry is complete
-            #
             for entry_type in ["buy", "sell"]:
-                if self._is_buy_or_sell(entry_type):
+                order_id = self.dct[f"{entry_type}_id"]
+                if self.dct_of_orders[order_id]["status"] == "complete":
                     self.dct["entry"] = entry_type
                     opp_entry_type = "sell" if entry_type == "buy" else "sell"
 
@@ -240,7 +245,7 @@ class Reverse:
                         )
 
         except Exception as e:
-            self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
+            self.message = f"{self.dct['tsym']} encountered {e} while move_initial_stop"
             logging.error(self.message)
             print_exc()
 

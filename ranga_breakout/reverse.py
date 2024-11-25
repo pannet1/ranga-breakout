@@ -95,15 +95,17 @@ class Reverse:
     def _is_buy_or_sell(self, operation):
         try:
             buy_or_sell = self.dct[f"{operation}_id"]
-            status = self.dct_of_orders[buy_or_sell].get(
-                "status", "unable to get status"
-            )
-            if status == "complete":
-                return True
-            elif status == "unable to get status":
-                raise ValueError(f"{status} for order {buy_or_sell}")
+            order = self.dct_of_orders.get(buy_or_sell, None)
+            if order is not None:
+                status = self.dct_of_orders[order].get("status", "unable to get status")
+                if status == "complete":
+                    return True
+                elif status == "unable to get status":
+                    raise ValueError(f"{status} for order {buy_or_sell}")
             else:
-                return False
+                raise ValueError(
+                    f"{buy_or_sell} of {self.dct['tsym']} not found in  order book "
+                )
 
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
@@ -219,46 +221,54 @@ class Reverse:
             # Determine if this is a "buy" or "sell" entry is complete
             for entry_type in ["buy", "sell"]:
                 order_id = self.dct[f"{entry_type}_id"]
-                status = self.dct_of_orders[order_id].get(
-                    "status", "unable to get status"
-                )
-                if status == "complete":
-                    self.dct["entry"] = entry_type
-                    opp_entry_type = "sell" if entry_type == "buy" else "sell"
-
-                    # Set stop price and args based on entry type
-                    stop_now = (
-                        float_2_curr(low - half - (high - low))
-                        if entry_type == "buy"
-                        else float_2_curr(high + half + (high - low))
+                order = self.dct_of_orders.get(order_id, None)
+                if order is not None:
+                    print(order)
+                    status = self.dct_of_orders[order].get(
+                        "status", "unable to get status"
                     )
-                    order_id = f"{opp_entry_type}_id"
-                    args_dict = f"{opp_entry_type}_args"
-                    self.message = f'{entry_type} NEW stop {stop_now} is going to replace INITIAL stop {self.dct["stop_price"]}'
-                    logging.info(self.message)
-                    self._modify_order(order_id, args_dict, stop_now)
-                    self.dct["fn"] = self.move_breakeven
+                    if status == "complete":
+                        self.dct["entry"] = entry_type
+                        opp_entry_type = "sell" if entry_type == "buy" else "sell"
 
-                    # Get candles and set trailing condition
-                    candles_now = self._get_history()
-                    if entry_type == "buy":
-                        self.dct["candle_two"] = max(
-                            candles_now[-3][2], candles_now[-2][2]
+                        # Set stop price and args based on entry type
+                        stop_now = (
+                            float_2_curr(low - half - (high - low))
+                            if entry_type == "buy"
+                            else float_2_curr(high + half + (high - low))
                         )
-                        self.dct["can_trail"] = (
-                            lambda c: c["last_price"] > c["candle_two"]
-                        )
+                        order_id = f"{opp_entry_type}_id"
+                        args_dict = f"{opp_entry_type}_args"
+                        self.message = f'{entry_type} NEW stop {stop_now} is going to replace INITIAL stop {self.dct["stop_price"]}'
+                        logging.info(self.message)
+                        self._modify_order(order_id, args_dict, stop_now)
+
+                        # Get candles and set trailing condition
+                        candles_now = self._get_history()
+                        if entry_type == "buy":
+                            self.dct["candle_two"] = max(
+                                candles_now[-3][2], candles_now[-2][2]
+                            )
+                            self.dct["can_trail"] = (
+                                lambda c: c["last_price"] > c["candle_two"]
+                            )
+                        else:
+                            self.dct["candle_two"] = min(
+                                candles_now[-3][3], candles_now[-2][3]
+                            )
+                            self.dct["can_trail"] = (
+                                lambda c: c["last_price"] < c["candle_two"]
+                            )
+                        self.dct["fn"] = self.move_breakeven
+                        return
                     else:
-                        self.dct["candle_two"] = min(
-                            candles_now[-3][3], candles_now[-2][3]
-                        )
-                        self.dct["can_trail"] = (
-                            lambda c: c["last_price"] < c["candle_two"]
-                        )
-                    break
+                        self.message = f"MOVE INITIAL STOP: {status} for {order_id} of {self.dct['tsym']}"
+                        logging.debug(self.message)
+
                 else:
-                    self.message = f"MOVE INITIAL STOP: {status} for {order_id} of {self.dct['tsym']}"
-                    logging.debug(self.message)
+                    raise ValueError(
+                        f"MOVE INITIAL STOP: {order_id} of {self.dct['tsym']} is not yet appeared in orderbook ?"
+                    )
 
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while move_initial_stop"

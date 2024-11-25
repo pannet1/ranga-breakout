@@ -52,7 +52,7 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
             resp = get_historical_data(historic_param)
             if resp is not None and any(resp) and any(resp[0]):
                 candles[row["symbol"]] = format_candle_data(row, resp[0])
-                logging.info(f'getting candles for: {row["symbol"]}')
+                logging.debug(f'getting candles for: {row["symbol"]}')
     except Exception as e:
         logging.error(f"{e} while getting candles")
         print_exc()

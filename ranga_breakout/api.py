@@ -29,7 +29,7 @@ class Helper:
             resp = cls.ao.orders
             return resp["data"]
         except Exception as e:
-            print(e)
+            logging.error(f"{e} while api is getting orders")
             return []
 
     @classmethod
@@ -40,7 +40,7 @@ class Helper:
             resp = cls.ao.positions
             return resp["data"]
         except Exception as e:
-            print(e)
+            logging.error(f"{e} while api is getting positions")
             return []
 
 

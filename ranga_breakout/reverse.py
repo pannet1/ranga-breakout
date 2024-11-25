@@ -97,7 +97,7 @@ class Reverse:
             buy_or_sell = self.dct[f"{operation}_id"]
             order = self.dct_of_orders.get(buy_or_sell, None)
             if order is not None:
-                status = self.dct_of_orders[order].get("status", "unable to get status")
+                status = order.get("status", "unable to get status")
                 if status == "complete":
                     return True
                 elif status == "unable to get status":
@@ -224,9 +224,7 @@ class Reverse:
                 order = self.dct_of_orders.get(order_id, None)
                 if order is not None:
                     print(order)
-                    status = self.dct_of_orders[order].get(
-                        "status", "unable to get status"
-                    )
+                    status = order.get("status", "unable to get status")
                     if status == "complete":
                         self.dct["entry"] = entry_type
                         opp_entry_type = "sell" if entry_type == "buy" else "sell"

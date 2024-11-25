@@ -64,27 +64,29 @@ class Reverse:
         self.candle_start = 2
         self.dct_of_orders = {}
         self.message = "message not set"
+        self.next_check = pdlm.now().add(minutes=1)
         logging.info(self.dct)
-        self.next_check = pdlm.now().add(minutes=5)
         self.make_order_params()
 
     """ 
         common methods
     """
 
-    def _get_history(self, should_check=True):
+    def _get_history(self, is_check=True, to=""):
         try:
             candles_now = []
-            if should_check:
+            if is_check:
                 self.next_check = pdlm.now().add(minutes=2)
                 params = {
                     "exchange": self.dct["exchange"],
                     "symboltoken": self.dct["token"],
                     "interval": "FIFTEEN_MINUTE",
                     "fromdate": dt_to_str("9:15"),
-                    "todate": dt_to_str(""),
+                    "todate": dt_to_str(to),
                 }
                 candles_now = get_historical_data(params)
+                if candles_now is None:
+                    candles_now = []
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while get history"
             logging.error(self.message)
@@ -106,28 +108,12 @@ class Reverse:
                 raise ValueError(
                     f"{buy_or_sell} of {self.dct['tsym']} not found in  order book "
                 )
-
+            return False
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while is_buy_or_sell"
             logging.error(self.message)
             print_exc()
             return False
-
-    def _is_order_complete(self, operation):
-        try:
-            FLAG = False
-            if self._is_buy_or_sell(operation):
-                self.dct["fn"] = None
-                self.message = (
-                    f"trail complete for {self.dct['tsym']} by {operation} stop order"
-                )
-                FLAG = True
-        except Exception as e:
-            self.message = f"{self.dct['tsym']} encountered {e} while is order complete"
-            logging.error(self.message)
-            print_exc()
-        finally:
-            return FLAG
 
     def _modify_order(self, order_id, args_dict, stop_now):
         try:
@@ -139,10 +125,10 @@ class Reverse:
                 }
             )
             args = self.dct[args_dict]
-            self.dct["info"] = stop_now
             logging.info(f"order modify: {args}")
             resp = Helper.api.order_modify(**args)
             logging.info(f"order modify response: {resp}")
+            self.dct["stop"] = stop_now
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while modify order"
             logging.error(self.message)
@@ -223,7 +209,6 @@ class Reverse:
                 order_id = self.dct[f"{entry_type}_id"]
                 order = self.dct_of_orders.get(order_id, None)
                 if order is not None:
-                    print(order)
                     status = order.get("status", "unable to get status")
                     if status == "complete":
                         self.dct["entry"] = entry_type
@@ -237,7 +222,7 @@ class Reverse:
                         )
                         order_id = f"{opp_entry_type}_id"
                         args_dict = f"{opp_entry_type}_args"
-                        self.message = f'{entry_type} NEW stop {stop_now} is going to replace INITIAL stop {self.dct["stop_price"]}'
+                        self.message = f'INITIAL: {self.dct["tsym"]} {entry_type} trade got new stop {stop_now}'
                         logging.info(self.message)
                         self._modify_order(order_id, args_dict, stop_now)
 
@@ -260,8 +245,8 @@ class Reverse:
                         self.dct["fn"] = self.move_breakeven
                         return
                     else:
-                        self.message = f"MOVE INITIAL STOP: {status} for {order_id} of {self.dct['tsym']}"
-                        logging.debug(self.message)
+                        message = f"1. {status} for {order_id} of {self.dct['tsym']}"
+                        logging.debug(message)
 
                 else:
                     raise ValueError(
@@ -305,11 +290,13 @@ class Reverse:
                     self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
 
                 # Update arguments and log the change
-                self.message = f'{self.dct["entry"]} BREAKEVEN {stop_now} will replace {self.dct["stop_price"]}'
-                logging.info(self.message)
+                self.message = f'2. BREAKEVEN: {self.dct['tsym']} {self.dct["entry"]}  {stop_now} will replace {self.dct["stop_price"]}'
+                logging.debug(self.message)
                 self._modify_order(order_id, args_dict, stop_now)
+            else:
+                raise ValueError(f"getting candles {candles_now}") 
         except Exception as e:
-            logging.error(f"Error while setting trailing stop: {e}")
+            logging.error(f"{self.dct['tsym']} {e} while SETTING trailing stoploss")
             print_exc()
 
     def move_breakeven(self):
@@ -318,7 +305,7 @@ class Reverse:
             operation = "sell" if self.dct["entry"] == "buy" else "buy"
 
             # check if stop loss is already hit
-            if self._is_order_complete(operation):
+            if self._is_buy_or_sell(operation):
                 self.dct["fn"] = None
                 return
 
@@ -336,16 +323,16 @@ class Reverse:
             if self.dct["can_trail"](self.dct):
                 # assign condtion for next function
                 self._set_trailing_stoploss(candles_now)
-                # assign next function
+                # TODO: move stop loss move message here
                 self.dct["fn"] = self.trail_stoploss
-                self.message = f"MOVE TO BREAKEVEN: Success {operation} stop for {self.dct['tsym']}"
-                logging.info(self.message)
+                message = f"2. BREAKEVEN: Success {operation} stop for {self.dct['tsym']}"
+                logging.info(message)
                 return
 
             # operation opposite here
             condition = "<" if operation == "buy" else ">"
             logging.debug(
-                f'NO BREAKEVEN YET: {self.dct["last_price"]} is not {condition} {self.dct["candle_two"]} for {self.dct["tsym"]}'
+                f'2: {self.dct["last_price"]} is not {condition} {self.dct["candle_two"]} for {self.dct["tsym"]}'
             )
         except Exception as e:
             self.message = f'{self.dct["tsym"]} encountered {e} while move breakeven'
@@ -356,10 +343,9 @@ class Reverse:
         4. trail stoploss
     """
 
-    def _update_buy_stop(self, candles_now):
+    def _update_buy_stop(self, stop_now, highest):
         """Helper to update the buy stop loss."""
         try:
-            stop_now, highest = find_buy_stop(candles_now)
             if stop_now and stop_now > self.dct["stop_price"]:
                 self.message = (
                     f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
@@ -381,10 +367,9 @@ class Reverse:
             logging.error(self.message)
             print_exc()
 
-    def _update_sell_stop(self, candles_now):
+    def _update_sell_stop(self, stop_now, lowest):
         """Helper to update the sell stop loss."""
         try:
-            stop_now, lowest = find_sell_stop(candles_now)
             if stop_now and stop_now < self.dct["stop_price"]:
                 self.message = (
                     f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
@@ -408,19 +393,21 @@ class Reverse:
 
     def _is_trailable(self, candles_now):
         try:
+            args ={}
             if self.dct["entry"] == "buy":
-                return self._update_buy_stop(candles_now)
+                stop_now, highest = find_buy_stop(candles_now)
+                args = self._update_buy_stop(stop_now, highest)
             elif self.dct["entry"] == "sell":
-                return self._update_sell_stop(candles_now)
-
-            return {}
-
+                stop_now, lowest = find_sell_stop(candles_now)
+                args = self._update_sell_stop(stop_now, lowest)
         except Exception as e:
             self.message = (
                 f"{self.dct['tsym']} encountered error '{e}' in  is_trailable"
             )
             logging.error(self.message)
             print_exc()
+        finally:
+            return args
 
     def trail_stoploss(self):
         """
@@ -429,7 +416,8 @@ class Reverse:
         try:
             # check if stop loss is already hit
             operation = "sell" if self.dct["entry"] == "buy" else "buy"
-            if self._is_order_complete(operation):
+            if self._is_buy_or_sell(operation):
+                self.dct["fn"] = None
                 return
 
             candles_now = self._get_history(pdlm.now() > self.next_check)

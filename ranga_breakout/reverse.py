@@ -359,9 +359,7 @@ class Reverse:
         """Helper to update the buy stop loss."""
         try:
             if stop_now and stop_now > self.dct["stop_price"]:
-                self.message = (
-                    f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
-                )
+                self.message = f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 stop_now = float_2_curr(stop_now)
                 args = {
                     "orderid": self.dct["sell_id"],
@@ -383,9 +381,7 @@ class Reverse:
         """Helper to update the sell stop loss."""
         try:
             if stop_now and stop_now < self.dct["stop_price"]:
-                self.message = (
-                    f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
-                )
+                self.message = f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 stop_now = float_2_curr(stop_now)
                 args = {
                     "orderid": self.dct["buy_id"],
@@ -446,13 +442,13 @@ class Reverse:
                     logging.debug(message)
                     args = self._is_trailable(candles_now)
                     if any(args):
-                        self.message = message
                         logging.debug(f"trailing stop modification parameters: {args}")
                         resp = Helper.api.order_modify(**args)
                         logging.debug(f"trailing stop  modification response: {resp}")
                         self.candle_count = len(candles_now)
                 else:
-
+                    message = f"{self.dct['last_price']} is not a breakout for {self.dct['tsym']}"
+                    logging.debug(message)
 
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while trailing stop"

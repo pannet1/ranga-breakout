@@ -35,7 +35,7 @@ def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
     }
 
 
-def get_candles(df: Any) -> dict[str, dict[str, Any]]:
+def get_candles(df: Any, to="") -> dict[str, dict[str, Any]]:
     try:
         candles = {}
 
@@ -46,7 +46,7 @@ def get_candles(df: Any) -> dict[str, dict[str, Any]]:
                 "interval": "THIRTY_MINUTE",
                 "fromdate": dt_to_str("9:15"),
                 # "fromdate": "2024-10-11 9:15",
-                "todate": dt_to_str(""),
+                "todate": dt_to_str(to),
                 # "todate": "2024-10-11 15:15",
             }
             resp = get_historical_data(historic_param)

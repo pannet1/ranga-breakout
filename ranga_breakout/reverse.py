@@ -115,20 +115,27 @@ class Reverse:
             print_exc()
             return False
 
-    def _modify_order(self, order_id, args_dict, stop_now):
+    def _modify_order(self, order_id, args_dict, stop_now, opp_entry_type):
         try:
+            if opp_entry_type == "buy":
+                price = stop_now + 0.10
+                triggerprice = stop_now + 0.05
+            else:
+                price = stop_now - 0.10
+                triggerprice = stop_now - 0.05
+
             self.dct[args_dict].update(
                 {
                     "orderid": self.dct[order_id],
-                    "price": stop_now,
-                    "trigger_price": stop_now,
+                    "price": price,
+                    "trigger_price": triggerprice,
                 }
             )
             args = self.dct[args_dict]
             logging.info(f"order modify: {args}")
             resp = Helper.api.order_modify(**args)
             logging.info(f"order modify response: {resp}")
-            self.dct["stop"] = stop_now
+            self.dct["stop_price"] = stop_now
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while modify order"
             logging.error(self.message)
@@ -224,7 +231,9 @@ class Reverse:
                         args_dict = f"{opp_entry_type}_args"
                         self.message = f'INITIAL: {self.dct["tsym"]} {entry_type} trade got new stop {stop_now}'
                         logging.info(self.message)
-                        self._modify_order(order_id, args_dict, stop_now)
+                        self._modify_order(
+                            order_id, args_dict, stop_now, opp_entry_type
+                        )
 
                         # Get candles and set trailing condition
                         candles_now = self._get_history()
@@ -290,11 +299,12 @@ class Reverse:
                     self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
 
                 # Update arguments and log the change
-                self.message = f'2. BREAKEVEN: {self.dct['tsym']} {self.dct["entry"]}  {stop_now} will replace {self.dct["stop_price"]}'
-                logging.debug(self.message)
-                self._modify_order(order_id, args_dict, stop_now)
+                self.message = f"2. BREAKEVEN: {self.dct['tsym']} {self.dct['entry']}  {stop_now} will replace {self.dct['stop_price']}"
+                logging.info(self.message)
+                opp_entry_type = "sell" if self.dct["entry"] == "buy" else "buy"
+                self._modify_order(order_id, args_dict, stop_now, opp_entry_type)
             else:
-                raise ValueError(f"getting candles {candles_now}") 
+                raise ValueError(f"getting candles {candles_now}")
         except Exception as e:
             logging.error(f"{self.dct['tsym']} {e} while SETTING trailing stoploss")
             print_exc()
@@ -325,7 +335,9 @@ class Reverse:
                 self._set_trailing_stoploss(candles_now)
                 # TODO: move stop loss move message here
                 self.dct["fn"] = self.trail_stoploss
-                message = f"2. BREAKEVEN: Success {operation} stop for {self.dct['tsym']}"
+                message = (
+                    f"2. BREAKEVEN: Success {operation} stop for {self.dct['tsym']}"
+                )
                 logging.info(message)
                 return
 
@@ -348,7 +360,7 @@ class Reverse:
         try:
             if stop_now and stop_now > self.dct["stop_price"]:
                 self.message = (
-                    f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
+                    f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 )
                 stop_now = float_2_curr(stop_now)
                 args = {
@@ -372,7 +384,7 @@ class Reverse:
         try:
             if stop_now and stop_now < self.dct["stop_price"]:
                 self.message = (
-                    f"TRAILING {stop_now} will replace {self.dct['stop_price']}"
+                    f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 )
                 stop_now = float_2_curr(stop_now)
                 args = {
@@ -393,7 +405,7 @@ class Reverse:
 
     def _is_trailable(self, candles_now):
         try:
-            args ={}
+            args = {}
             if self.dct["entry"] == "buy":
                 stop_now, highest = find_buy_stop(candles_now)
                 args = self._update_buy_stop(stop_now, highest)
@@ -431,7 +443,7 @@ class Reverse:
                     message = (
                         f"{self.dct['last_price']} is a breakout for {self.dct['tsym']}"
                     )
-                    print(message)
+                    logging.debug(message)
                     args = self._is_trailable(candles_now)
                     if any(args):
                         self.message = message
@@ -439,6 +451,8 @@ class Reverse:
                         resp = Helper.api.order_modify(**args)
                         logging.debug(f"trailing stop  modification response: {resp}")
                         self.candle_count = len(candles_now)
+                else:
+
 
         except Exception as e:
             self.message = f"{self.dct['tsym']} encountered {e} while trailing stop"

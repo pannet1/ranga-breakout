@@ -54,7 +54,7 @@ def get_params():
     else:
         print("HAPPY TRADING")
 
-    return get_candles(df)
+    return get_candles(df, "9:45")
 
 
 def main():

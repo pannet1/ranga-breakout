@@ -1,5 +1,6 @@
 from omspy_brokers.angel_one import AngelOne
 from __init__ import logging, CNFG
+from traceback import print_exc
 
 
 def get_token():
@@ -62,17 +63,44 @@ if __name__ == "__main__":
     resp = get_historical_data(historicParam)
     print(resp)
     """
-    ord = Helper.orders
-    df = pd.DataFrame(ord)
-    print(df)
-    df.to_csv(S_DATA + "orders.csv")
 
-    pos = Helper.positions
-    df = pd.DataFrame(pos)
-    print(df)
-    # find sum of of pnl column in df
-    df.to_csv(S_DATA + "positions.csv")
-    if not df.empty:
-        lst = df["pnl"].astype(float).tolist()
-        pnl = sum(lst)
-        print(f"{pnl=}")
+    def orders():
+        ord = Helper.orders
+        df = pd.DataFrame(ord)
+        print(df)
+        df.to_csv(S_DATA + "orders.csv")
+
+    def positions():
+        pos = Helper.positions
+        df = pd.DataFrame(pos)
+        print(df)
+        # find sum of of pnl column in df
+        df.to_csv(S_DATA + "positions.csv")
+        if not df.empty:
+            lst = df["pnl"].astype(float).tolist()
+            pnl = sum(lst)
+            print(f"{pnl=}")
+
+    def modify_order():
+        try:
+            params = {
+                "symbol": "INDIGO-EQ",
+                "exchange": "NSE",
+                "order_type": "STOPLOSS_LIMIT",
+                "product": "INTRADAY",
+                "quantity": 2.0,
+                "symboltoken": "11195",
+                "variety": "STOPLOSS",
+                "duration": "DAY",
+                "side": "SELL",
+                "price": 4351.45,
+                "trigger_price": 4351.5,
+                "orderid": "241127000230561",
+            }
+            resp = Helper.api.order_modify(**params)
+            print(resp)
+        except Exception as e:
+            print(e)
+            print_exc()
+
+    orders()

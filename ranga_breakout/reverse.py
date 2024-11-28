@@ -219,7 +219,7 @@ class Reverse:
                     status = order.get("status", "unable to get status")
                     if status == "complete":
                         self.dct["entry"] = entry_type
-                        opp_entry_type = "sell" if entry_type == "buy" else "sell"
+                        opp_entry_type = "sell" if entry_type == "buy" else "buy"
                         logging.debug(f"{entry_type=} and {opp_entry_type=}")
 
                         # Set stop price and args based on entry type

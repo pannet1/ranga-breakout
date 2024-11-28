@@ -142,7 +142,7 @@ class Reverse:
             print_exc()
 
     """
-       1. make order params 
+       A. make order params 
     """
 
     def make_order_params(self):
@@ -166,13 +166,13 @@ class Reverse:
             self.dct["fn"] = self.place_both_orders
         except Exception as e:
             fn = self.dct.pop("fn")
-            self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
+            self.message = f"0. {self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
             self.dct["fn"] = None
 
     """
-     1. place both  orders
+     B. place both  orders
     """
 
     def _place_order(self, order_args_key, order_type):
@@ -195,14 +195,14 @@ class Reverse:
         except Exception as e:
             fn_name = self.dct.pop("fn", None)  # Remove fn on error
             self.message = (
-                f"{self.dct['tsym']} encountered error '{e}' in function {fn_name}"
+                f"0. {self.dct['tsym']} encountered error '{e}' in function {fn_name}"
             )
             logging.error(self.message)
             print_exc()
             self.dct["fn"] = None  # Reset fn pointer on failure
 
     """ 
-      2.  move initial stop 
+      1.  move initial stop 
     """
 
     def move_initial_stop(self):
@@ -220,7 +220,6 @@ class Reverse:
                     if status == "complete":
                         self.dct["entry"] = entry_type
                         opp_entry_type = "sell" if entry_type == "buy" else "buy"
-                        logging.debug(f"{entry_type=} and {opp_entry_type=}")
 
                         # Set stop price and args based on entry type
                         stop_now = (
@@ -230,11 +229,8 @@ class Reverse:
                         )
                         order_id = f"{opp_entry_type}_id"
                         args_dict = f"{opp_entry_type}_args"
-                        self.message = f'INITIAL: {self.dct["tsym"]} {entry_type} trade got new stop {stop_now}'
+                        self.message = f'1. INITIAL: {self.dct["tsym"]} {entry_type} trade got new stop {stop_now}'
                         logging.info(self.message)
-                        logging.info(
-                            f"{entry_type=} {order_id=}{args_dict=} {opp_entry_type=}"
-                        )
                         self._modify_order(
                             order_id, args_dict, stop_now, opp_entry_type
                         )
@@ -267,12 +263,14 @@ class Reverse:
                     )
 
         except Exception as e:
-            self.message = f"{self.dct['tsym']} encountered {e} while move_initial_stop"
+            self.message = (
+                f"1. {self.dct['tsym']} encountered {e} while move_initial_stop"
+            )
             logging.error(self.message)
             print_exc()
 
     """
-        3. Move to Breakeven
+        2. Move to Breakeven
     """
 
     def _set_trailing_stoploss(self, candles_now):
@@ -308,7 +306,7 @@ class Reverse:
                 opp_entry_type = "sell" if self.dct["entry"] == "buy" else "buy"
                 self._modify_order(order_id, args_dict, stop_now, opp_entry_type)
             else:
-                raise ValueError(f"getting candles {candles_now}")
+                raise ValueError(f"2. getting candles {candles_now}")
         except Exception as e:
             logging.error(f"{self.dct['tsym']} {e} while SETTING trailing stoploss")
             print_exc()
@@ -351,19 +349,19 @@ class Reverse:
                 f'2: {self.dct["last_price"]} is not {condition} {self.dct["candle_two"]} for {self.dct["tsym"]}'
             )
         except Exception as e:
-            self.message = f'{self.dct["tsym"]} encountered {e} while move breakeven'
+            self.message = f'2. {self.dct["tsym"]} encountered {e} while move breakeven'
             logging.error(self.message)
             print_exc()
 
     """
-        4. trail stoploss
+        3. trail stoploss
     """
 
     def _update_buy_stop(self, stop_now, highest):
         """Helper to update the buy stop loss."""
         try:
             if stop_now and stop_now > self.dct["stop_price"]:
-                self.message = f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
+                self.message = f"3. TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 stop_now = float_2_curr(stop_now)
                 args = {
                     "orderid": self.dct["sell_id"],
@@ -377,7 +375,7 @@ class Reverse:
                 return args
             return {}
         except Exception as e:
-            self.message = f'{self.dct["tsym"]} encountered {e} update buy stop'
+            self.message = f'3. {self.dct["tsym"]} encountered {e} update buy stop'
             logging.error(self.message)
             print_exc()
 
@@ -385,7 +383,7 @@ class Reverse:
         """Helper to update the sell stop loss."""
         try:
             if stop_now and stop_now < self.dct["stop_price"]:
-                self.message = f"TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
+                self.message = f"3. TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 stop_now = float_2_curr(stop_now)
                 args = {
                     "orderid": self.dct["buy_id"],
@@ -399,7 +397,7 @@ class Reverse:
                 return args
             return {}
         except Exception as e:
-            self.message = f'{self.dct["tsym"]} encountered {e} update sell stop'
+            self.message = f'3. {self.dct["tsym"]} encountered {e} update sell stop'
             logging.error(self.message)
             print_exc()
 
@@ -414,7 +412,7 @@ class Reverse:
                 args = self._update_sell_stop(stop_now, lowest)
         except Exception as e:
             self.message = (
-                f"{self.dct['tsym']} encountered error '{e}' in  is_trailable"
+                f"3. {self.dct['tsym']} encountered error '{e}' in  is_trailable"
             )
             logging.error(self.message)
             print_exc()
@@ -440,9 +438,7 @@ class Reverse:
 
                 """Determine if conditions meet for modifying the trailing stop loss."""
                 if self.dct["can_trail"](self.dct):
-                    message = (
-                        f"{self.dct['last_price']} is a breakout for {self.dct['tsym']}"
-                    )
+                    message = f"3. {self.dct['last_price']} is a breakout for {self.dct['tsym']}"
                     logging.debug(message)
                     args = self._is_trailable(candles_now)
                     if any(args):
@@ -451,11 +447,11 @@ class Reverse:
                         logging.debug(f"trailing stop  modification response: {resp}")
                         self.candle_count = len(candles_now)
                 else:
-                    message = f"{self.dct['last_price']} is not a breakout for {self.dct['tsym']}"
+                    message = f"3. {self.dct['last_price']} is not a breakout for {self.dct['tsym']}"
                     logging.debug(message)
 
         except Exception as e:
-            self.message = f"{self.dct['tsym']} encountered {e} while trailing stop"
+            self.message = f"3. {self.dct['tsym']} encountered {e} while trailing stop"
             logging.error(self.message)
             print_exc()
 

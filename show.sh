@@ -1,3 +1,3 @@
 #!/bin/env sh
 
-/usr/bin/watch tail -n 15 data/log.txt
+/usr/bin/watch tail -n 30 data/log.txt

@@ -231,6 +231,9 @@ class Reverse:
                         args_dict = f"{opp_entry_type}_args"
                         self.message = f'INITIAL: {self.dct["tsym"]} {entry_type} trade got new stop {stop_now}'
                         logging.info(self.message)
+                        logging.info(
+                            f"{entry_type=} {order_id=}{args_dict=} {opp_entry_type=}"
+                        )
                         self._modify_order(
                             order_id, args_dict, stop_now, opp_entry_type
                         )

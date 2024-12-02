@@ -432,9 +432,8 @@ class Reverse:
 
             candles_now = self._get_history(pdlm.now() > self.next_check)
             if any(candles_now):
-                candles_now = candles_now[self.candle_start :]
+                candles_now = candles_now[self.candle_start :].pop()
                 pprint(candles_now)
-                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
 
                 """Determine if conditions meet for modifying the trailing stop loss."""
                 if self.dct["can_trail"](self.dct):
@@ -446,6 +445,7 @@ class Reverse:
                         resp = Helper.api.order_modify(**args)
                         logging.debug(f"trailing stop  modification response: {resp}")
                         self.candle_count = len(candles_now)
+                        # self.dct["l"], self.dct["h"] = find_extremes(candles_now)
                 else:
                     message = f"3. {self.dct['last_price']} is not a breakout for {self.dct['tsym']}"
                     logging.debug(message)

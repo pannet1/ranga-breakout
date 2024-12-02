@@ -11,7 +11,7 @@ def cancel_all_orders():
         for order in resp:
             print(order)
             if order["status"] in ["open", "trigger pending"]:
-                O_UTIL.slp_til_nxt_sec()
+                # O_UTIL.slp_til_nxt_sec()
                 logging.info(f"close all: cancelling order {order['orderid']}")
                 Helper.api.order_cancel(order_id=order["orderid"], variety="NORMAL")
     except Exception as e:
@@ -40,7 +40,7 @@ def close_all_positions():
                     "quantity": abs(quantity),
                 }
                 logging.info(f"Closing position for {params['tradingsymbol']}")
-                O_UTIL.slp_til_nxt_sec()
+                # O_UTIL.slp_til_nxt_sec()
                 resp = Helper.api.order_place(**order_params)
                 logging.info(resp)
     except Exception as e:

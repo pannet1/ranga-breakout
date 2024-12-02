@@ -282,7 +282,9 @@ class Reverse:
             if arr_candles.shape[0] >= 3:
                 self.candle_start = arr_candles.shape[0] - 3
 
-                self.dct["l"], self.dct["h"] = find_extremes(candles_now)
+                self.dct["l"], self.dct["h"] = find_extremes(
+                    candles_now[self.candle_start :]
+                )
                 # Determine trailing conditions based on entry type
 
                 if self.dct["entry"] == "buy":
@@ -337,9 +339,7 @@ class Reverse:
                 self._set_trailing_stoploss(candles_now)
                 # TODO: move stop loss move message here
                 self.dct["fn"] = self.trail_stoploss
-                message = (
-                    f"2. BREAKEVEN: Success {operation} stop for {self.dct['tsym']}"
-                )
+                message = f"2. BREAKEVEN: Success {self.dct['entry']} stop for {self.dct['tsym']}"
                 logging.info(message)
                 return
 

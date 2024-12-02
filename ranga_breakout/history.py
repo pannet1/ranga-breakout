@@ -83,6 +83,7 @@ def find_buy_stop(candles_data):
 
 
 def find_sell_stop(candles_data):
+
     np_data = np.array(candles_data)
 
     # Convert the "High" and "Low" columns to float

@@ -369,7 +369,7 @@ class Reverse:
                     "triggerprice": stop_now - 0.05,
                 }
                 self.dct["sell_args"].update(args)
-                self.dct["h"] = highest
+                # self.dct["h"] = highest
                 self.dct["stop_price"] = stop_now
                 args = self.dct["sell_args"]
                 return args
@@ -391,7 +391,7 @@ class Reverse:
                     "triggerprice": stop_now + 0.05,
                 }
                 self.dct["buy_args"].update(args)
-                self.dct["l"] = lowest
+                # self.dct["l"] = lowest
                 self.dct["stop_price"] = stop_now
                 args = self.dct["buy_args"]
                 return args
@@ -432,7 +432,7 @@ class Reverse:
 
             candles_now = self._get_history(pdlm.now() > self.next_check)
             if any(candles_now):
-                candles_now = candles_now[self.candle_start :].pop()
+                # candles_now = candles_now[self.candle_start :]
                 pprint(candles_now)
 
                 """Determine if conditions meet for modifying the trailing stop loss."""

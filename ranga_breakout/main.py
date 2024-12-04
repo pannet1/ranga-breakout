@@ -69,12 +69,13 @@ def main():
             strategies = [Reverse(param) for param in params.values()]
 
         while not is_time_past(O_SETG["stop"]):
-            for obj in strategies[:]:
+            for obj in strategies:
                 obj.run(Helper.orders, get_ltp(params), CANDLE_OTHER)
                 CANDLE_OTHER = obj.candle_count
                 print("last message: ", obj.message)
-                if obj.dct["fn"] is None:
-                    strategies.remove(obj)
+
+            # Remove objects with no function after processing
+            strategies = [obj for obj in strategies if obj.dct["fn"] is not None]
         else:
             cancel_all_orders()
             close_all_positions()

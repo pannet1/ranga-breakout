@@ -185,21 +185,35 @@ class Reverse:
     def place_both_orders(self):
         try:
             # Place buy and sell orders with helper function
-            self.dct["buy_id"] = self._place_order("buy_args", "BUY")
-            self.dct["sell_id"] = self._place_order("sell_args", "SELL")
-
-            # Set the next function
-            self.dct["fn"] = self.move_initial_stop
-            self.message = f"buy and sell orders placed for {self.dct['tsym']}"
-
+            order_id = self._place_order("buy_args", "BUY")
+            if order_id and len(order_id) > 0:
+                self.dct["buy_id"] = order_id
+                order_id = self._place_order("sell_args", "SELL")
+                if order_id and len(order_id) > 0:
+                    self.dct["sell_id"] = order_id
+                    # Set the next function
+                    self.dct["fn"] = self.move_initial_stop
+                    self.message = f"buy and sell orders placed for {self.dct['tsym']}"
+                else:
+                    Helper.api.order_cancel(
+                        order_id=self.dct["buy_id"], variety="NORMAL"
+                    )
+                    logging.warning(
+                        f"{self.dct['tsym']} sell order failed and buy order cancelled"
+                    )
+                    self.dct["fn"] = None
+            else:  # buy order failed
+                logging.warning(
+                    f"{self.dct['tsym']} buy order failed so not placing sell order"
+                )
+                self.dct["fn"] = None
         except Exception as e:
-            fn_name = self.dct.pop("fn", None)  # Remove fn on error
             self.message = (
-                f"0. {self.dct['tsym']} encountered error '{e}' in function {fn_name}"
+                f"0. {self.dct['tsym']} encountered error {e} while place both orders"
             )
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = None  # Reset fn pointer on failure
+            self.dct["fn"] = self.move_initial_stop
 
     """ 
       1.  move initial stop 
@@ -259,7 +273,7 @@ class Reverse:
 
                 else:
                     raise ValueError(
-                        f"MOVE INITIAL STOP: {order_id} of {self.dct['tsym']} is not yet appeared in orderbook ?"
+                        f"{order_id} of {self.dct['tsym']} is not yet appeared in orderbook ?"
                     )
 
         except Exception as e:
@@ -360,7 +374,11 @@ class Reverse:
     def _update_buy_stop(self, stop_now, highest):
         """Helper to update the buy stop loss."""
         try:
-            if stop_now and stop_now > self.dct["stop_price"]:
+            if (
+                stop_now
+                and (stop_now > self.dct["stop_price"])
+                and (self.dct["last_price"] > stop_now)
+            ):
                 self.message = f"3. TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 stop_now = float_2_curr(stop_now)
                 args = {
@@ -382,7 +400,11 @@ class Reverse:
     def _update_sell_stop(self, stop_now, lowest):
         """Helper to update the sell stop loss."""
         try:
-            if stop_now and stop_now < self.dct["stop_price"]:
+            if (
+                stop_now
+                and (stop_now < self.dct["stop_price"])
+                and (self.dct["last_price"] < stop_now)
+            ):
                 self.message = f"3. TRAILING: {self.dct['tsym']} {stop_now} will replace {self.dct['stop_price']}"
                 stop_now = float_2_curr(stop_now)
                 args = {

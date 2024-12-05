@@ -57,6 +57,7 @@ class Breakout:
         self.message = "message not set"
         logging.info(self.dct)
         self.make_order_params()
+        self.place_both_orders()
 
     def make_order_params(self):
         try:

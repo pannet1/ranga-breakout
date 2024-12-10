@@ -151,7 +151,7 @@ class Reverse:
         """
         try:
             distance = float_2_curr(
-                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["multiplier"]
+                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["distance"]
             )
 
             # Precompute prices for buy and sell orders
@@ -223,7 +223,7 @@ class Reverse:
     def move_initial_stop(self):
         try:
             distance = float_2_curr(
-                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["multiplier"]
+                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["distance"]
             )
 
             # Determine if this is a "buy" or "sell" entry is complete

@@ -41,8 +41,8 @@ class Reverse:
         self.dct = dict(
             tsym=param["tsym"],
             exchange=param["exchange"],
-            h=param["h"],
-            l=param["l"],
+            h=float(param["h"]),
+            l=float(param["l"]),
             last_price=param["c"],
             quantity=param["quantity"],
             token=param["token"],
@@ -150,12 +150,13 @@ class Reverse:
         make order params for placing orders
         """
         try:
-            high, low = float(self.dct["h"]), float(self.dct["l"])
-            half_spread = (high - low) / 2
+            distance = float_2_curr(
+                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["multiplier"]
+            )
 
             # Precompute prices for buy and sell orders
-            buy_price = float_2_curr(low - half_spread)
-            sell_price = float_2_curr(high + half_spread)
+            buy_price = self.dct["h"] - distance
+            sell_price = self.dct["l"] + distance
 
             self.dct["buy_args"] = create_order_args(
                 ohlc=self.dct, side="BUY", price=buy_price, trigger_price=buy_price
@@ -221,9 +222,9 @@ class Reverse:
 
     def move_initial_stop(self):
         try:
-            high = float(self.dct["h"])
-            low = float(self.dct["l"])
-            half = float_2_curr((high - low) / 2)
+            distance = float_2_curr(
+                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["multiplier"]
+            )
 
             # Determine if this is a "buy" or "sell" entry is complete
             for entry_type in ["buy", "sell"]:
@@ -237,9 +238,9 @@ class Reverse:
 
                         # Set stop price and args based on entry type
                         stop_now = (
-                            float_2_curr(low - half - (high - low))
+                            self.dct["l"] - distance
                             if entry_type == "buy"
-                            else float_2_curr(high + half + (high - low))
+                            else self.dct["h"] + distance
                         )
                         order_id = f"{opp_entry_type}_id"
                         args_dict = f"{opp_entry_type}_args"

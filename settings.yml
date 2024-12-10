@@ -1,3 +1,5 @@
-start: "9:45"
-stop: "15:28"
-mode: 0
+start: "9:44"
+stop: "19:20"
+mode: 1
+reverse:
+  distance: 1

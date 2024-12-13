@@ -3,7 +3,7 @@ from typing import Any  # Importing only the required types
 import numpy as np
 from toolkit.kokoo import dt_to_str
 
-from __init__ import logging
+from __init__ import logging, O_SETG
 from api import Helper
 
 from history import find_buy_stop, get_historical_data, find_sell_stop, find_extremes
@@ -151,7 +151,7 @@ class Reverse:
         """
         try:
             distance = float_2_curr(
-                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["distance"]
+                (self.dct["h"] - self.dct["l"]) * O_SETG["reverse"]["distance"]
             )
 
             # Precompute prices for buy and sell orders
@@ -223,7 +223,7 @@ class Reverse:
     def move_initial_stop(self):
         try:
             distance = float_2_curr(
-                (self.dct["h"] - self.dct["l"]) * SETG["reverse"]["distance"]
+                (self.dct["h"] - self.dct["l"]) * O_SETG["reverse"]["distance"]
             )
 
             # Determine if this is a "buy" or "sell" entry is complete

@@ -81,24 +81,29 @@ class Breakout:
             print_exc()
             self.dct["fn"] = None
 
+    def _buy_trade(self, args):
+        # Place buy order
+        resp = Helper.api.order_place(**args["buy_args"])
+        logging.debug(
+            f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
+        )
+        self.dct["buy_id"] = resp
+        return
+    
+    def _sell_trade(self, args):
+        # Place sell order
+        resp = Helper.api.order_place(**args["sell_args"])
+        logging.debug(
+            f"{args['sell_args']['symbol']} {args['sell_args']['side']} got {resp=}"
+        )
+        self.dct["sell_id"] = resp
+        return 
+
     def place_both_orders(self):
         try:
             args = self.dct
-
-            # Place buy order
-            resp = Helper.api.order_place(**args["buy_args"])
-            logging.debug(
-                f"{args['buy_args']['symbol']} {args['buy_args']['side']} got {resp=}"
-            )
-            self.dct["buy_id"] = resp
-
-            # Place sell order
-            resp = Helper.api.order_place(**args["sell_args"])
-            logging.debug(
-                f"{args['sell_args']['symbol']} {args['sell_args']['side']} got {resp=}"
-            )
-            self.dct["sell_id"] = resp
-
+            self._buy_trade(args)
+            self._sell_trade(args)
             self.dct["fn"] = self.is_buy_or_sell
             self.message = "buy and sell orders placed"
         except Exception as e:
@@ -110,22 +115,45 @@ class Breakout:
 
     def _is_buy_or_sell(self, operation):
         buy_or_sell = self.dct[f"{operation}_id"]
-        return self.dct_of_orders[buy_or_sell]["status"] == "complete"
+        return self.dct_of_orders[buy_or_sell]["status"]
 
     def is_buy_or_sell(self):
         """
         determine if buy or sell order is completed
         """
         try:
-            if self._is_buy_or_sell("buy"):
+            limit_args = dict(
+                trigger_price = 0,
+                variety = "NORMAL",
+                order_type = "LIMIT"
+            )
+            args = self.dct
+            buy_status = self._is_buy_or_sell("buy")
+            sell_status = self._is_buy_or_sell("sell")
+
+            if buy_status == "complete":
                 self.dct["entry"] = "buy"
                 self.dct["can_trail"] = lambda c: c["last_price"] > c["h"]
                 self.dct["stop_price"] = self.dct["l"]
-            elif self._is_buy_or_sell("sell"):
+            elif sell_status == "complete":
                 self.dct["entry"] = "sell"
                 self.dct["can_trail"] = lambda c: c["last_price"] < c["l"]
                 self.dct["stop_price"] = self.dct["h"]
-
+            elif buy_status == sell_status == "rejected":
+                logging.debug(f"{self.dct['tsym']} both buy and sell orders are rejected")
+                self.dct["fn"] = None
+                return
+            elif buy_status == "rejected": 
+                logging.debug(f"{self.dct['tsym']} BUY trade is {buy_status}")
+                args["buy_args"].update(limit_args)
+                self._buy_trade(args)
+                return
+            elif sell_status == "rejected":
+                logging.debug(f"{self.dct['tsym']} SELL trade is {sell_status}")
+                args["sell_args"].update(limit_args)
+                self._sell_trade(args)
+                return
+                
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"
             else:
@@ -197,7 +225,7 @@ class Breakout:
             FLAG = False
             # check if stop loss is already hit
             operation = "sell" if self.dct["entry"] == "buy" else "buy"
-            if self._is_buy_or_sell(operation):
+            if self._is_buy_or_sell(operation) == "complete":
                 self.dct["fn"] = None
                 self.message = (
                     f"trail complete for {self.dct['tsym']} by {operation} stop order"
@@ -236,7 +264,7 @@ class Breakout:
                     """
                     if any(args):
                         logging.debug(f"order modify {args}")
-                        resp = Helper.api.order_modify(**args)
+                resp = Helper.api.order_modify(**args)
                         logging.debug(f"order modify {resp}")
                         self.candle_count = len(candles_now)
                         self.candle_other = len(candles_now)
@@ -247,7 +275,7 @@ class Breakout:
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
-            self.dct["fn"] = None
+         self.dct["fn"] = None
 
     def run(self, lst_of_orders, dct_of_ltp, CANDLE_OTHER):
         try:

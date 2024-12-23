@@ -11,6 +11,8 @@ O_UTIL = Utilities()
 
 S_DUMP = S_DATA + "symbols.json"
 S_UNIV = S_DATA + "universe.csv"
+S_CASH = S_DATA + "cash.csv"
+S_FUTURE = S_DATA + "future.csv"
 S_OUT = S_DATA + "out.csv"
 S_STOPS = S_DATA + "stops.json"
 YML = O_FUTL.get_lst_fm_yml("../../breakout.yml")

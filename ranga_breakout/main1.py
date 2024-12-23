@@ -46,14 +46,19 @@ def get_ltp(params: dict) -> dict:
 
 
 def get_params():
-    df = stocks_in_play()
-    while not is_time_past(O_SETG["start"]):
-        print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
-        timer(0.5)
-    else:
-        print("HAPPY TRADING")
+    try:
+        args = __import__("sys").argv[1:]
+        is_cash = True if len(args) > 0 else False
+        df = stocks_in_play(is_cash)
+        while not is_time_past(O_SETG["start"]):
+            print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
+            timer(0.5)
+        else:
+            print("HAPPY TRADING")
 
-    return get_candles(df, "9:45")
+        return get_candles(df, "9:45")
+    except Exception as e:
+        print(f"{e} while getting parameters")
 
 
 def main():

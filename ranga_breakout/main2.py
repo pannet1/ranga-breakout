@@ -46,7 +46,9 @@ def get_ltp(params: dict) -> dict:
 
 
 def get_params():
-    df = stocks_in_play()
+    args = __import__("sys").argv[1:]
+    is_cash = True if len(args) > 0 else False
+    df = stocks_in_play(is_cash)
     while not is_time_past(O_SETG["start"]):
         print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
         timer(0.5)

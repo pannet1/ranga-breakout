@@ -2,6 +2,8 @@
 
 # Define the session name
 sess="tmux-session"
+# Capture all command-line arguments
+args="$@"
 
 git reset --hard && git pull
 # Check if the session exists
@@ -14,6 +16,6 @@ else
   tmux new-session -d -s "$sess"
   tmux send-keys -t "$sess" "cd ranga_breakout" C-m
   tmux send-keys -t "$sess" "pwd" C-m
-  tmux send-keys -t "$sess" "python3 main1.py" C-m
+  tmux send-keys -t "$sess" "python3 main1.py $args" C-m
   tmux attach -t "$sess"
 fi

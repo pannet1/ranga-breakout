@@ -16,6 +16,6 @@ else
   tmux new-session -d -s "$sess"
   tmux send-keys -t "$sess" "cd ranga_breakout" C-m
   tmux send-keys -t "$sess" "pwd" C-m
-  tmux send-keys -t "$sess" "python3 main3.py $args" C-m
+  tmux send-keys -t "$sess" "python3 mainbuy.py $args" C-m
   tmux attach -t "$sess"
 fi

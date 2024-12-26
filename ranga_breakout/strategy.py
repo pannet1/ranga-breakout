@@ -41,7 +41,7 @@ class Breakout:
         )
 
         defaults = {
-            "fn": None,
+            "fn": self.is_buy_or_sell,
             "buy_args": {},
             "sell_args": {},
             "buy_id": None,

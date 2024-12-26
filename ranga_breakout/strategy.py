@@ -72,7 +72,6 @@ class Breakout:
                 float(self.dct["l"]) - 0.10,
                 float(self.dct["l"]) - 0.05,
             )
-            self.dct["fn"] = self.place_both_orders
         except Exception as e:
             fn = self.dct.get("fn", None)
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"

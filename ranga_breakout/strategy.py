@@ -41,7 +41,6 @@ class Breakout:
         )
 
         defaults = {
-            "fn": self.place_both_orders,
             "buy_args": {},
             "sell_args": {},
             "buy_id": None,
@@ -60,6 +59,7 @@ class Breakout:
 
     def make_order_params(self):
         try:
+            self.dct["fn"] = self.place_both_orders
             self.dct["buy_args"] = create_order_args(
                 self.dct,
                 "BUY",

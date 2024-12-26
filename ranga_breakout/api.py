@@ -1,6 +1,7 @@
 from omspy_brokers.angel_one import AngelOne
 from __init__ import logging, CNFG
 from traceback import print_exc
+from pprint import pprint
 
 
 def get_token():
@@ -30,6 +31,7 @@ class Helper:
             # get orders
             resp = cls.ao.orders
             resp = resp["data"]
+            return resp
         except Exception as e:
             logging.error(f"{e} while api is getting orders")
             return []

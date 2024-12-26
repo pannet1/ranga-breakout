@@ -26,9 +26,10 @@ class Helper:
     @property
     def orders(cls):
         try:
+            resp = []
             # get orders
             resp = cls.ao.orders
-            return resp["data"]
+            resp = resp["data"]
         except Exception as e:
             logging.error(f"{e} while api is getting orders")
             return []

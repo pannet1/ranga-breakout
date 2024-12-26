@@ -63,6 +63,7 @@ def get_params():
 
 def main():
     try:
+        logging.info("running breakout")
         CANDLE_OTHER = 2
         Helper.api
         params: dict = get_params()

@@ -75,7 +75,7 @@ class Breakout:
             )
             self.dct["fn"] = self.place_both_orders
         except Exception as e:
-            fn = self.dct.pop("fn")
+            fn = self.dct.get("fn", None)
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()
@@ -107,7 +107,7 @@ class Breakout:
             self.dct["fn"] = self.is_buy_or_sell
             self.message = "buy and sell orders placed"
         except Exception as e:
-            fn = self.dct.pop("fn")
+            fn = self.dct.get("fn", None)
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()

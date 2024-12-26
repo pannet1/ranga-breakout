@@ -113,7 +113,7 @@ class Breakout:
             self.dct["fn"] = None
 
     def _is_buy_or_sell(self, operation):
-        buy_or_sell = self.dct[f"{operation}_id"]
+        buy_or_sell = int(self.dct[f"{operation}_id"])
         return self.dct_of_orders[buy_or_sell]["status"]
 
     def is_buy_or_sell(self):

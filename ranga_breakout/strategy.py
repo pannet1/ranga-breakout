@@ -41,7 +41,7 @@ class Breakout:
         )
 
         defaults = {
-            "fn": self.make_order_params,
+            "fn": self.place_both_orders,
             "buy_args": {},
             "sell_args": {},
             "buy_id": None,
@@ -57,7 +57,6 @@ class Breakout:
         self.message = "message not set"
         logging.info(self.dct)
         self.make_order_params()
-        self.place_both_orders()
 
     def make_order_params(self):
         try:

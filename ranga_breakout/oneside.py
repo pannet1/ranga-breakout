@@ -42,6 +42,7 @@ class Oneside:
         self.dir = dir
 
         defaults = {
+            "fn": self.if_complete_place_stop,
             "buy_args": {},
             "sell_args": {},
             "buy_id": None,
@@ -58,7 +59,6 @@ class Oneside:
         logging.info(self.dct)
         self.make_order_params()
         getattr(self, f"_{dir}_trade")(self.dct)
-        self.dct["fn"] = self.if_complete_place_stop
 
     def if_complete_place_stop(self):
         try:
@@ -104,9 +104,8 @@ class Oneside:
                 float(self.dct["l"]) - 0.10,
                 float(self.dct["l"]) - 0.05,
             )
-            self.dct["fn"] = self.place_both_orders
         except Exception as e:
-            fn = self.dct.pop("fn")
+            fn = self.dct.get("fn", None)
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()

@@ -79,6 +79,7 @@ class Oneside:
                 return
             else:
                 print(f"{self.dct['tsym']} {self.dir} order {status=}")
+                return
 
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"

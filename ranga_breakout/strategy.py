@@ -240,7 +240,7 @@ class Breakout:
 
             if FLAG:
                 candles_now = self.get_history()
-                if len(candles_now) > self.candle_count:
+                if candles_now is not None and len(candles_now) > self.candle_count:
                     pprint(candles_now)
                     print(
                         f"curr candle:{len(candles_now)} > prev candle:{self.candle_count}"
@@ -268,7 +268,7 @@ class Breakout:
                         # timer(0.5)
 
         except Exception as e:
-            fn = self.dct.pop("fn")
+            fn = self.dct.get("fn", None)
             self.message = f"{self.dct['tsym']} encountered {e} while {fn}"
             logging.error(self.message)
             print_exc()

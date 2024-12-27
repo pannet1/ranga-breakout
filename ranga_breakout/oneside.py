@@ -77,6 +77,8 @@ class Oneside:
                 logging.debug(f"{self.dct['tsym']} {self.dir} order is rejected")
                 self.dct["fn"] = None
                 return
+            else:
+                print(f"{self.dct['tsym']} {self.dir} order {status=}")
 
             if self.dct["entry"] is None:
                 self.message = f"no entry order is completed for {self.dct['tsym']}"

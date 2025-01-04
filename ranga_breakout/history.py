@@ -5,6 +5,7 @@ from __init__ import logging
 from toolkit.kokoo import dt_to_str
 from api import Helper
 import numpy as np
+import pandas as pd
 
 
 def get_historical_data(historic_param: dict[str, Any]) -> Any:
@@ -21,43 +22,6 @@ def get_historical_data(historic_param: dict[str, Any]) -> Any:
         print_exc()
     finally:
         return data
-
-
-def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
-    return {
-        "exchange": row["exchange"],
-        "tsym": row["symbol"],
-        "h": data[2],
-        "l": data[3],
-        "c": data[4],
-        "quantity": row["quantity"],
-        "token": row["token"],
-    }
-
-
-def get_candles(df: Any, to="") -> dict[str, dict[str, Any]]:
-    try:
-        candles = {}
-
-        for _, row in df.iterrows():
-            historic_param = {
-                "exchange": row["exchange"],
-                "symboltoken": row["token"],
-                "interval": "THIRTY_MINUTE",
-                "fromdate": dt_to_str("9:15"),
-                # "fromdate": "2024-10-11 9:15",
-                "todate": dt_to_str(to),
-                # "todate": "2024-10-11 15:15",
-            }
-            resp = get_historical_data(historic_param)
-            if resp is not None and any(resp) and any(resp[0]):
-                candles[row["symbol"]] = format_candle_data(row, resp[0])
-                logging.debug(f'getting candles for: {row["symbol"]}')
-    except Exception as e:
-        logging.error(f"{e} while getting candles")
-        print_exc()
-    finally:
-        return candles
 
 
 def find_buy_stop(candles_data):
@@ -114,6 +78,112 @@ def find_extremes(candles_data):
     return min_low, max_high
 
 
+def rank(data, method):
+    """Ranks prices based on proximity to h/l and assigns a unified rank.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing columns 'h', 'l', 'c'.
+
+    Returns:
+        pd.DataFrame: DataFrame with an additional 'rank' and 'action' column.
+    """
+    data["price_range"] = data["h"] - data["l"]
+    data["distance_from_l"] = (data["c"] - data["l"]) / data["price_range"]
+    data["distance_from_h"] = (data["h"] - data["c"]) / data["price_range"]
+    # data["rank"] = 0.5 - (data["c"] - data["l"]) / data["price_range"]
+    if method == "low":
+        data["rank"] = data["distance_from_l"]
+        data.loc[data["c"] < data["l"], "rank"] = data["distance_from_l"] - 1
+    elif method == "high":
+        data["rank"] = data["distance_from_h"]
+        data.loc[data["c"] > data["h"], "rank"] = data["distance_from_h"] - 1
+    else:
+        # iniitalize with high
+        data["rank"] = data["distance_from_h"]
+        data.loc[data["c"] > data["h"], "rank"] = data["distance_from_h"] - 1
+        data.loc[data["c"] < data["l"], "rank"] = data["distance_from_l"] - 1
+        data.loc[data["distance_from_l"] < data["distance_from_h"], "rank"] = data[
+            "distance_from_l"
+        ]
+
+    data.sort_values(by=["rank"], inplace=True)
+    data = data.reset_index(drop=True)
+    return data
+
+
+def format_candle_data(row: Any, data: list[list[Any]]) -> dict[str, Any]:
+    return {
+        "exchange": row["exchange"],
+        "tsym": row["symbol"],
+        "h": data[2],
+        "l": data[3],
+        "c": data[4],
+        "quantity": row["quantity"],
+        "token": row["token"],
+    }
+
+
+def get_candles(df: Any, to="") -> dict[str, dict[str, Any]]:
+    try:
+        candles = {}
+
+        for _, row in df.iterrows():
+            historic_param = {
+                "exchange": row["exchange"],
+                "symboltoken": row["token"],
+                "interval": "THIRTY_MINUTE",
+                "fromdate": dt_to_str("9:15"),
+                # "fromdate": "2024-10-11 9:15",
+                "todate": dt_to_str(to),
+                # "todate": "2024-10-11 15:15",
+            }
+            resp = get_historical_data(historic_param)
+            # TODO
+            if resp is not None and any(resp) and any(resp[0]):
+                candles[row["symbol"]] = format_candle_data(row, resp[0])
+    except Exception as e:
+        logging.error(f"{e} while getting candles")
+        print_exc()
+    finally:
+        return candles
+
+
+def _get_candle_lst(df: Any, to="") -> dict[str, dict[str, Any]]:
+    try:
+        lst = []
+        for _, row in df.iterrows():
+            historic_param = {
+                "exchange": row["exchange"],
+                "symboltoken": row["token"],
+                "interval": "THIRTY_MINUTE",
+                "fromdate": dt_to_str("9:15"),
+                # "fromdate": "2024-10-11 9:15",
+                "todate": dt_to_str(to),
+                # "todate": "2024-10-11 15:15",
+            }
+            resp = get_historical_data(historic_param)
+            # TODO
+            if resp is not None and any(resp) and any(resp[0]):
+                lst.append(format_candle_data(row, resp[0]))
+
+    except Exception as e:
+        logging.error(f"{e} while getting candles")
+        print_exc()
+    finally:
+        return lst
+
+
+def get_candles_ranked(df, to, method="both"):
+    candles = {}
+    lst = _get_candle_lst(df, to)
+    if any(lst):
+        data = pd.DataFrame(lst)
+        rank_data = _rank(data, method)
+        for _, row in rank_data.iterrows():
+            candles[row["tsym"]] = row
+    return candles
+
+
 # Test the find_buy_stop function
 if __name__ == "__main__":
     data = [
@@ -140,3 +210,17 @@ if __name__ == "__main__":
 
     test_find_buy_stop(data)
     test_find_sell_stop(data)
+
+    # Sample data with fixed h/l and different c prices
+    data = pd.DataFrame(
+        {
+            "stock": ["infy", "sbin", "hdfc", "shiva"],
+            "h": [100, 100, 100, 100],
+            "l": [50, 50, 50, 50],
+            "c": [101, 95, 51, 49],
+        }
+    )
+    print(data)
+
+    resp = rank(data)
+    print(resp)

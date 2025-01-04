@@ -293,6 +293,7 @@ class Reverse:
         try:
             if not any(candles_now):
                 candles_now = self._get_history()
+
             arr_candles = np.array(candles_now)
             if arr_candles.shape[0] >= 3:
                 self.candle_start = arr_candles.shape[0] - 3
@@ -339,7 +340,7 @@ class Reverse:
                 return
 
             candles_now = self._get_history(pdlm.now() > self.next_check)
-            if any(candles_now):
+            if candles_now is not None and any(candles_now):
                 if operation == "sell":  # stop order is sell
                     temp = max(candles_now[-3][2], candles_now[-2][2])
                     if temp < self.dct["candle_two"]:
@@ -454,7 +455,7 @@ class Reverse:
                 return
 
             candles_now = self._get_history(pdlm.now() > self.next_check)
-            if any(candles_now):
+            if candles_now is not None and any(candles_now):
                 # candles_now = candles_now[self.candle_start :]
                 pprint(candles_now)
 

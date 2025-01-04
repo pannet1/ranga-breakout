@@ -1,7 +1,7 @@
 from traceback import print_exc
 from typing import Any  # Importing only the required types
 
-from toolkit.kokoo import timer, dt_to_str
+from toolkit.kokoo import dt_to_str
 
 from __init__ import logging
 from api import Helper

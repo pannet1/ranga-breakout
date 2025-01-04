@@ -1,111 +1,93 @@
 import pandas as pd
 
 
-def rank_price_proximity(data):
-    """Ranks prices based on proximity to high/low and assigns a unified rank.
+def rank_price_proximity_v1(data):
+    """Ranks prices based on proximity to h/l and assigns a unified rank.
 
     Args:
-        data (pd.DataFrame): DataFrame containing columns 'high', 'low', 'current'.
+        data (pd.DataFrame): DataFrame containing columns 'h', 'l', 'c'.
 
     Returns:
-        pd.DataFrame, pd.DataFrame: Two DataFrames, one containing stocks closer to low and the other closer to high.
+        pd.DataFrame, pd.DataFrame: Two DataFrames, one containing stocks closer to l and the other closer to h.
     """
-    data["price_range"] = data["high"] - data["low"]
-    data["distance_from_low"] = (
-        data["current"] - data["low"]) / data["price_range"]
-    data["distance_from_high"] = (
-        data["high"] - data["current"]) / data["price_range"]
+    data["price_range"] = data["h"] - data["l"]
+    data["distance_from_l"] = (data["c"] - data["l"]) / data["price_range"]
+    data["distance_from_h"] = (data["h"] - data["c"]) / data["price_range"]
 
-    # Separate stocks closer to low and high
-    low_proximity_data = data[data["distance_from_low"] <= 0.5]
-    high_proximity_data = data[data["distance_from_low"] > 0.5]
+    # Separate stocks closer to l and h
+    l_proximity_data = data[data["distance_from_l"] <= 0.5]
+    h_proximity_data = data[data["distance_from_l"] > 0.5]
 
-    # Adjust rank calculation to prioritize stocks with current price lower than low price
-    low_proximity_data["rank"] = (
+    # Adjust rank calculation to prioritize stocks with c price ler than l price
+    l_proximity_data["rank"] = (
         0.5
-        - (low_proximity_data["current"] - low_proximity_data["low"])
-        / low_proximity_data["price_range"]
+        - (l_proximity_data["c"] - l_proximity_data["l"])
+        / l_proximity_data["price_range"]
     )
-    low_proximity_data.loc[
-        low_proximity_data["current"] < low_proximity_data["low"], "rank"
-    ] = low_proximity_data["distance_from_low"] - 1
+    l_proximity_data.loc[l_proximity_data["c"] < l_proximity_data["l"], "rank"] = (
+        l_proximity_data["distance_from_l"] - 1
+    )
 
-    low_proximity_data["action"] = "sell"
+    l_proximity_data["action"] = "sell"
 
-    # Adjust rank calculation to prioritize stocks with current price higher than high price
-    high_proximity_data["rank"] = (
+    # Adjust rank calculation to prioritize stocks with c price her than h price
+    h_proximity_data["rank"] = (
         0.5
-        - (high_proximity_data["high"] - high_proximity_data["current"])
-        / high_proximity_data["price_range"]
+        - (h_proximity_data["h"] - h_proximity_data["c"])
+        / h_proximity_data["price_range"]
     )
-    high_proximity_data.loc[
-        high_proximity_data["current"] > high_proximity_data["high"], "rank"
-    ] = high_proximity_data["distance_from_high"] - 1
-    high_proximity_data["action"] = "buy"
+    h_proximity_data.loc[h_proximity_data["c"] > h_proximity_data["h"], "rank"] = (
+        h_proximity_data["distance_from_h"] - 1
+    )
+    h_proximity_data["action"] = "buy"
 
-    df = pd.concat([low_proximity_data, high_proximity_data], axis=1)
-    df.drop(["distance_from_high", "distance_from_low"], axis=1, inplace=True)
+    df = pd.concat([l_proximity_data, h_proximity_data], axis=1)
+    df.drop(["distance_from_h", "distance_from_l"], axis=1, inplace=True)
     return data
 
 
-# Sample data with fixed high/low and different current prices
-data = pd.DataFrame(
-    {
-        "high": [100, 100, 100, 100],
-        "low": [50, 50, 50, 50],
-        "current": [101, 95, 51, 49],
-    }
-)
-
-low_proximity_data, high_proximity_data = rank_price_proximity(data)
-print("Stocks closer to low:")
-print(low_proximity_data)
-print("\nStocks closer to high:")
-print(high_proximity_data)
-
-
-def rank_price_proximity(data):
-    """Ranks prices based on proximity to high/low and assigns a unified rank.
+def rank_price_proximity_v2(data):
+    """Ranks prices based on proximity to h/l and assigns a unified rank.
 
     Args:
-        data (pd.DataFrame): DataFrame containing columns 'high', 'low', 'current'.
+        data (pd.DataFrame): DataFrame containing columns 'h', 'l', 'c'.
 
     Returns:
         pd.DataFrame: DataFrame with an additional 'rank' and 'action' column.
     """
-    data["price_range"] = data["high"] - data["low"]
-    data["distance_from_low"] = (
-        data["current"] - data["low"]) / data["price_range"]
-    data["distance_from_high"] = (
-        data["high"] - data["current"]) / data["price_range"]
+    data["price_range"] = data["h"] - data["l"]
+    data["distance_from_l"] = (data["c"] - data["l"]) / data["price_range"]
+    data["distance_from_h"] = (data["h"] - data["c"]) / data["price_range"]
+    # data["rank"] = 0.5 - (data["c"] - data["l"]) / data["price_range"]
+    data["rank"] = data["distance_from_h"]
+    data.loc[data["distance_from_l"] < data["distance_from_h"], "rank"] = data[
+        "distance_from_l"
+    ]
 
-    # Adjust rank calculation to prioritize stocks with current price lower than low price
-    data["rank"] = 0.5 - (data["current"] - data["low"]) / data["price_range"]
-    data.loc[data["current"] < data["low"],
-             "rank"] = data["distance_from_low"] - 1
+    data.loc[data["c"] < data["l"], "rank"] = data["distance_from_l"] - 1
+    # data.loc[data["c"] > data["h"], "action"] = "sell"
 
-    data["action"] = "sell"
+    data.loc[data["c"] > data["h"], "rank"] = data["distance_from_h"] - 1
+    # data.loc[data["c"] > data["h"], "action"] = "buy"
 
-    # Adjust rank calculation to prioritize stocks with current price higher than high price
-    data.loc[data["current"] > data["high"],
-             "rank"] = data["distance_from_high"] - 1
-    data.loc[data["current"] > data["high"], "action"] = "buy"
-
-    data.drop(["distance_from_high", "distance_from_low"],
-              axis=1, inplace=True)
+    data.sort_values(by=["rank"], inplace=True)
+    data = data.reset_index(drop=True)
 
     return data
 
 
-# Sample data with fixed high/low and different current prices
-data = pd.DataFrame(
-    {
-        "high": [100, 100, 100, 100],
-        "low": [50, 50, 50, 50],
-        "current": [101, 95, 51, 49],
-    }
-)
+if __name__ == "__main__":
 
-ranked_data = rank_price_proximity(data)
-print("Ranked Data:")
-print(ranked_data)
+    # Sample data with fixed h/l and different c prices
+    data = pd.DataFrame(
+        {
+            "stock": ["infy", "sbin", "hdfc", "shiva"],
+            "h": [100, 100, 100, 100],
+            "l": [50, 50, 50, 50],
+            "c": [101, 95, 51, 49],
+        }
+    )
+    print(data)
+
+    resp = rank_price_proximity_v2(data)
+    print(resp)

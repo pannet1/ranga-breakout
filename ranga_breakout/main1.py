@@ -6,7 +6,7 @@ from __init__ import O_SETG, logging
 from api import Helper
 from breakout import Breakout
 from universe import stocks_in_play
-from history import get_candles, get_candles_ranked
+from history import get_candles_ranked
 from exit_and_go import cancel_all_orders, close_all_positions
 
 

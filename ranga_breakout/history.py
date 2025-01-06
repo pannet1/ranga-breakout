@@ -78,7 +78,7 @@ def find_extremes(candles_data):
     return min_low, max_high
 
 
-def rank(data, method):
+def _rank(data, method):
     """Ranks prices based on proximity to h/l and assigns a unified rank.
 
     Args:
@@ -100,12 +100,13 @@ def rank(data, method):
     else:
         # iniitalize with high
         data["rank"] = data["distance_from_h"]
+        data["side"] = "buy"
         data.loc[data["c"] > data["h"], "rank"] = data["distance_from_h"] - 1
         data.loc[data["c"] < data["l"], "rank"] = data["distance_from_l"] - 1
         data.loc[data["distance_from_l"] < data["distance_from_h"], "rank"] = data[
             "distance_from_l"
         ]
-
+        data.loc[data["distance_from_l"] < data["distance_from_h"], "side"] = "sell"
     data.sort_values(by=["rank"], inplace=True)
     data = data.reset_index(drop=True)
     return data
@@ -222,5 +223,5 @@ if __name__ == "__main__":
     )
     print(data)
 
-    resp = rank(data)
+    resp = _rank(data)
     print(resp)

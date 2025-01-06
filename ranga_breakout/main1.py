@@ -4,9 +4,9 @@ import pendulum as pdlm
 from toolkit.kokoo import is_time_past, kill_tmux, timer
 from __init__ import O_SETG, logging
 from api import Helper
-from strategy import Breakout
+from breakout import Breakout
 from universe import stocks_in_play
-from history import get_candles
+from history import get_candles, get_candles_ranked
 from exit_and_go import cancel_all_orders, close_all_positions
 
 
@@ -56,7 +56,7 @@ def get_params():
         else:
             print("HAPPY TRADING")
 
-        return get_candles(df, "9:45")
+        return get_candles_ranked(df, "9:45")
     except Exception as e:
         print(f"{e} while getting parameters")
 

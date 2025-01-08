@@ -29,7 +29,7 @@ def create_order_args(ohlc, side, price, trigger_price):
 
 class Oneside:
 
-    def __init__(self, param: dict[str, dict[str, Any]], dir):
+    def __init__(self, param: dict[str, dict[str, Any]]):
         self.dct = dict(
             tsym=param["tsym"],
             exchange=param["exchange"],
@@ -39,8 +39,7 @@ class Oneside:
             quantity=param["quantity"],
             token=param["token"],
         )
-        self.dir = dir
-
+        self.dir = param["side"]
         defaults = {
             "fn": self.if_complete_place_stop,
             "buy_args": {},

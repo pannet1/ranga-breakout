@@ -94,9 +94,11 @@ def _rank(data, method):
     if method == "low":
         data["rank"] = data["distance_from_l"]
         data.loc[data["c"] < data["l"], "rank"] = data["distance_from_l"] - 1
+        data["side"] = "sell"
     elif method == "high":
         data["rank"] = data["distance_from_h"]
         data.loc[data["c"] > data["h"], "rank"] = data["distance_from_h"] - 1
+        data["side"] = "buy"
     else:
         # iniitalize with high
         data["rank"] = data["distance_from_h"]

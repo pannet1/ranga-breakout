@@ -6,7 +6,7 @@ from __init__ import O_SETG, logging
 from api import Helper
 from oneside import Oneside
 from universe import stocks_in_play
-from history import get_candles
+from history import get_candles_ranked
 from exit_and_go import cancel_all_orders, close_all_positions
 
 
@@ -54,9 +54,9 @@ def get_params():
             print("clock:", pdlm.now().format("HH:mm:ss"), "zzz ", O_SETG["start"])
             timer(0.5)
         else:
-            print("HAPPY TRADING")
+            print("Happy BUY ONLY trading")
 
-        return get_candles(df, "9:45")
+        return get_candles_ranked(df, "9:45", "high")
     except Exception as e:
         print(f"{e} while getting parameters")
 
@@ -67,7 +67,7 @@ def main():
         Helper.api
         params: dict = get_params()
         # create strategy object
-        strategies = [Oneside(param, "buy") for param in params.values()]
+        strategies = [Oneside(param) for param in params.values()]
 
         while not is_time_past(O_SETG["stop"]):
             for obj in strategies:

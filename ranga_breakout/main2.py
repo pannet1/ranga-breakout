@@ -6,7 +6,7 @@ from __init__ import O_SETG, logging
 from api import Helper
 from reverse import Reverse
 from universe import stocks_in_play
-from history import get_candles
+from history import get_candles_ranked
 from exit_and_go import cancel_all_orders, close_all_positions
 
 
@@ -55,7 +55,7 @@ def get_params():
     else:
         print("HAPPY TRADING")
 
-    return get_candles(df, "9:45")
+    return get_candles_ranked(df, "9:45")
 
 
 def main():

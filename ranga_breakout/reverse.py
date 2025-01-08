@@ -23,11 +23,11 @@ def create_order_args(ohlc, side, price, trigger_price):
     return dict(
         symbol=ohlc["tsym"],
         exchange=ohlc["exchange"],
-        order_type="STOPLOSS_LIMIT",
+        order_type="LIMIT",
         product="INTRADAY",  # Options: CARRYFORWARD, INTRADAY
         quantity=ohlc["quantity"],
         symboltoken=ohlc["token"],
-        variety="STOPLOSS",
+        variety="REGULAR",
         duration="DAY",
         side=side,
         price=price,
@@ -41,15 +41,16 @@ class Reverse:
         self.dct = dict(
             tsym=param["tsym"],
             exchange=param["exchange"],
-            h=float(param["h"]),
-            l=float(param["l"]),
+            h=param["h"],
+            l=param["l"],
             last_price=param["c"],
             quantity=param["quantity"],
             token=param["token"],
         )
+        self.dir = "buy" if param["side"] == "sell" else "sell"
 
         defaults = {
-            "fn": self.make_order_params,
+            "fn": self.place_both_orders,
             "buy_args": {},
             "sell_args": {},
             "buy_id": None,
@@ -164,7 +165,6 @@ class Reverse:
             self.dct["sell_args"] = create_order_args(
                 ohlc=self.dct, side="SELL", price=sell_price, trigger_price=sell_price
             )
-            self.dct["fn"] = self.place_both_orders
         except Exception as e:
             fn = self.dct.pop("fn")
             self.message = f"0. {self.dct['tsym']} encountered {e} while {fn}"

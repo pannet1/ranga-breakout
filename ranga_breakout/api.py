@@ -27,13 +27,11 @@ class Helper:
     @property
     def orders(cls):
         try:
-            resp = []
             # get orders
-            resp = cls.ao.orders
-            resp = resp["data"]
-            return resp
+            resp = cls.api.orders
+            return resp["data"]
         except Exception as e:
-            logging.error(f"{e} while api is getting orders")
+            logging.error(f"{e} while api is getting orders {resp}")
             return []
 
     @classmethod
@@ -41,10 +39,10 @@ class Helper:
     def positions(cls):
         try:
             # get orders
-            resp = cls.ao.positions
+            resp = cls.api.positions
             return resp["data"]
         except Exception as e:
-            logging.error(f"{e} while api is getting positions")
+            logging.error(f"{e} while api is getting positions {resp}")
             return []
 
 

@@ -57,7 +57,7 @@ class Oneside:
         self.message = "message not set"
         logging.info(self.dct)
         self.make_order_params()
-        getattr(self, f"_{dir}_trade")(self.dct)
+        getattr(self, f"_{self.dir}_trade")(self.dct)
 
     def if_complete_place_stop(self):
         try:
